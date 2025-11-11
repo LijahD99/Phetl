@@ -12,6 +12,8 @@ parameters:
     reportUnmatchedIgnoredErrors: true
 
     ignoreErrors:
+        # PHPUnit assertions are dynamic by design
+        - '#Dynamic call to static method PHPUnit\\Framework\\Assert::#'
         # Add specific ignores here as needed
 
     excludePaths:
