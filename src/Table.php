@@ -19,6 +19,7 @@ use Phetl\Transform\Columns\ColumnAdder;
 use Phetl\Transform\Columns\ColumnRenamer;
 use Phetl\Transform\Columns\ColumnSelector;
 use Phetl\Transform\Joins\Join;
+use Phetl\Transform\Reshaping\Reshaper;
 use Phetl\Transform\Rows\RowFilter;
 use Phetl\Transform\Rows\RowSelector;
 use Phetl\Transform\Rows\RowSorter;
@@ -674,5 +675,64 @@ class Table implements IteratorAggregate
     public function sumField(string $field, string|array|null $groupBy = null): self
     {
         return new self(Aggregator::sum($this->materializedData, $field, $groupBy));
+    }
+
+    /**
+     * Unpivot table from wide to long format.
+     *
+     * @param string|array<string> $idFields Field(s) to keep as identifiers
+     * @param string|array<string>|null $valueFields Field(s) to unpivot (null = all except id fields)
+     * @param string $variableName Name for the variable column (default: 'variable')
+     * @param string $valueName Name for the value column (default: 'value')
+     */
+    public function unpivot(
+        string|array $idFields,
+        string|array|null $valueFields = null,
+        string $variableName = 'variable',
+        string $valueName = 'value'
+    ): self {
+        return new self(Reshaper::unpivot($this->materializedData, $idFields, $valueFields, $variableName, $valueName));
+    }
+
+    /**
+     * Alias for unpivot - petl compatibility.
+     *
+     * @param string|array<string> $idFields Field(s) to keep as identifiers
+     * @param string|array<string>|null $valueFields Field(s) to melt (null = all except id fields)
+     * @param string $variableName Name for the variable column (default: 'variable')
+     * @param string $valueName Name for the value column (default: 'value')
+     */
+    public function melt(
+        string|array $idFields,
+        string|array|null $valueFields = null,
+        string $variableName = 'variable',
+        string $valueName = 'value'
+    ): self {
+        return $this->unpivot($idFields, $valueFields, $variableName, $valueName);
+    }
+
+    /**
+     * Pivot table from long to wide format.
+     *
+     * @param string|array<string> $indexFields Field(s) to use as row identifiers
+     * @param string $columnField Field to pivot into columns
+     * @param string $valueField Field to use for values
+     * @param callable|string|null $aggregation Aggregation function for duplicates
+     */
+    public function pivot(
+        string|array $indexFields,
+        string $columnField,
+        string $valueField,
+        callable|string|null $aggregation = null
+    ): self {
+        return new self(Reshaper::pivot($this->materializedData, $indexFields, $columnField, $valueField, $aggregation));
+    }
+
+    /**
+     * Transpose table - swap rows and columns.
+     */
+    public function transpose(): self
+    {
+        return new self(Reshaper::transpose($this->materializedData));
     }
 }
