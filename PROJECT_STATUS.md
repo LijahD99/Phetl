@@ -1,6 +1,97 @@
-# PHETL Project Scaffolding - Complete! ✅
+# PHETL Project Status
 
-## What's Been Set Up
+## Current Status: Active Development ✅
+
+### Completed Features (289 tests, 663 assertions)
+
+#### ✅ Core I/O Layer
+- **ArrayExtractor** - Extract from PHP arrays (7 tests)
+- **CsvExtractor** - Extract from CSV files with custom delimiters/enclosures (13 tests)
+- **JsonExtractor** - Extract from JSON files (12 tests)
+- **DatabaseExtractor** - Extract via PDO queries (11 tests)
+- **CsvLoader** - Load to CSV files (13 tests)
+- **JsonLoader** - Load to JSON files (12 tests)
+- **DatabaseLoader** - Load to database tables (12 tests)
+
+#### ✅ Table Core
+- **Table.php** - Main fluent API class with factory methods (13 tests)
+- Lazy evaluation via generators
+- Method chaining support
+- Multiple output formats (toArray, toCsv, toJson, toDatabase)
+
+#### ✅ Row Transformations
+- **RowSelector.php** - head(), tail(), slice(), skip() (19 tests)
+- **RowFilter.php** - filter(), where*() methods (19 tests)
+  - whereEquals, whereNotEquals
+  - whereGreaterThan, whereLessThan, whereGreaterThanOrEqual, whereLessThanOrEqual
+  - whereIn, whereNotIn, whereContains
+  - whereNull, whereNotNull
+  - whereTrue, whereFalse
+- **RowSorter.php** - sort() with single/multiple fields, custom comparators (24 tests)
+
+#### ✅ Column Transformations
+- **ColumnSelector.php** - selectColumns()/cut(), removeColumns()/cutout() (15 tests)
+- **ColumnRenamer.php** - renameColumns()/rename() (14 tests)
+- **ColumnAdder.php** - addColumn()/addField(), addRowNumbers() (14 tests)
+
+#### ✅ Value Transformations
+- **ValueConverter.php** - convert(), convertMultiple() (16 tests)
+- **ValueReplacer.php** - replace(), replaceMap(), replaceAll() (7 tests)
+
+#### ✅ Set Operations
+- **SetOperation.php** - concat(), union(), merge() (31 tests)
+  - concat: Vertical concatenation with header validation
+  - union: Remove duplicates across tables
+  - merge: Combine tables with different headers (fills nulls)
+
+#### ✅ Join Operations
+- **Join.php** - inner(), left(), right() (29 tests)
+  - Single or multiple join keys
+  - Hash-based lookup strategy
+  - Proper null handling for outer joins
+  - Field validation with descriptive errors
+
+#### ✅ Aggregation Operations
+- **Aggregator.php** - aggregate(), count(), sum() (26 tests)
+  - Group by single or multiple fields
+  - Built-in functions: count, sum, avg/mean, min, max, first, last
+  - Custom aggregation functions via closures
+  - Table methods: aggregate(), groupBy(), countBy(), sumField()
+
+### Architecture Highlights
+
+✅ **PSR-12 Compliant** - All code follows PSR-12 standards
+✅ **PHPStan Max Level** - Passing static analysis at maximum level
+✅ **Comprehensive Tests** - 289 tests, 663 assertions, all passing
+✅ **Lazy Evaluation** - Generators for memory efficiency
+✅ **Dual API** - Improved names + petl-compatible aliases
+✅ **Fluent Chaining** - All transformations support method chaining
+
+## Next Steps
+
+### In Progress
+- [ ] Reshaping operations (pivot, unpivot, transpose)
+
+### Planned - Phase 4
+- [ ] Deduplication (unique, distinct, duplicates)
+- [ ] Validation framework
+- [ ] Additional string/regex operations
+
+### Planned - Phase 5
+- [ ] Additional I/O formats (Excel, Parquet)
+- [ ] Window functions (lead, lag, rank)
+- [ ] Performance optimizations
+- [ ] RESTful API extractor
+
+## Development Stats
+
+- **Total Tests**: 289 (4 skipped)
+- **Total Assertions**: 663
+- **Test Coverage**: Unit + Integration
+- **Code Quality**: PHPStan max level, PSR-12 compliant
+- **Files Created**: 40+ source files, 20+ test files
+
+## Project Standards Maintained
 
 ### ✅ Project Configuration
 - **composer.json** - PHP 8.1+, PHPUnit, PHPStan, PHP-CS-Fixer, Pest

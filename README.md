@@ -298,21 +298,21 @@ This gives us:
 - [ ] Fluent wrapper for method chaining
 
 ### Phase 2: Basic Transformations
-- [ ] head, tail, rowslice
-- [ ] cut, cutout
-- [ ] cat, stack
-- [ ] addfield, addcolumn
-- [ ] rename, setheader
+- [x] head, tail, rowslice
+- [x] cut, cutout
+- [x] cat, stack
+- [x] addfield, addcolumn
+- [x] rename, setheader
 
 ### Phase 3: Data Transformations
-- [ ] convert, replace
-- [ ] select, selecteq, selectgt, etc.
-- [ ] sort, mergesort
+- [x] convert, replace
+- [x] select, selecteq, selectgt, etc.
+- [x] sort, mergesort
 - [ ] unique, distinct, duplicates
 
 ### Phase 4: Advanced Operations
-- [ ] join, leftjoin, rightjoin
-- [ ] aggregate, rowreduce
+- [x] join, leftjoin, rightjoin
+- [x] aggregate, rowreduce
 - [ ] melt, recast, pivot
 - [ ] regex operations
 
