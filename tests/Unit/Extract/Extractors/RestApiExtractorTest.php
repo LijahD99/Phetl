@@ -367,3 +367,187 @@ describe('RestApiExtractor - Authentication', function () {
         ]);
     })->throws(InvalidArgumentException::class, 'Username and password are required');
 });
+
+describe('RestApiExtractor - Pagination', function () {
+    it('fetches multiple pages with offset pagination', function () {
+        // Simulate 2 pages of data
+        $page1 = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+            ['id' => 2, 'name' => 'Bob'],
+        ]);
+        $page2 = json_encode([
+            ['id' => 3, 'name' => 'Charlie'],
+            ['id' => 4, 'name' => 'Diana'],
+        ]);
+        $page3 = json_encode([]); // Empty = no more data
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_responses' => [$page1, $page2, $page3],
+            'pagination' => [
+                'type' => 'offset',
+                'page_size' => 2,
+                'offset_param' => 'offset',
+                'limit_param' => 'limit',
+            ],
+            '_capture_urls' => true,
+        ]);
+
+        $result = iterator_to_array($extractor->extract());
+
+        expect($result)->toBe([
+            ['id', 'name'],
+            [1, 'Alice'],
+            [2, 'Bob'],
+            [3, 'Charlie'],
+            [4, 'Diana'],
+        ]);
+
+        $urls = $extractor->getCapturedUrls();
+        expect($urls[0])->toContain('offset=0');
+        expect($urls[0])->toContain('limit=2');
+        expect($urls[1])->toContain('offset=2');
+        expect($urls[2])->toContain('offset=4');
+    });
+
+    it('fetches multiple pages with cursor pagination', function () {
+        $page1 = json_encode([
+            'data' => [
+                ['id' => 1, 'name' => 'Alice'],
+                ['id' => 2, 'name' => 'Bob'],
+            ],
+            'next_cursor' => 'cursor_abc',
+        ]);
+        $page2 = json_encode([
+            'data' => [
+                ['id' => 3, 'name' => 'Charlie'],
+            ],
+            'next_cursor' => null, // null = no more pages
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_responses' => [$page1, $page2],
+            'pagination' => [
+                'type' => 'cursor',
+                'cursor_param' => 'cursor',
+                'cursor_path' => 'next_cursor',
+                'data_path' => 'data',
+            ],
+            '_capture_urls' => true,
+        ]);
+
+        $result = iterator_to_array($extractor->extract());
+
+        expect($result)->toBe([
+            ['id', 'name'],
+            [1, 'Alice'],
+            [2, 'Bob'],
+            [3, 'Charlie'],
+        ]);
+
+        $urls = $extractor->getCapturedUrls();
+        expect($urls[0])->not->toContain('cursor=');
+        expect($urls[1])->toContain('cursor=cursor_abc');
+    });
+
+    it('fetches multiple pages with page number pagination', function () {
+        $page1 = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+            ['id' => 2, 'name' => 'Bob'],
+        ]);
+        $page2 = json_encode([
+            ['id' => 3, 'name' => 'Charlie'],
+        ]);
+        $page3 = json_encode([]); // Empty = no more pages
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_responses' => [$page1, $page2, $page3],
+            'pagination' => [
+                'type' => 'page',
+                'page_size' => 2,
+                'page_param' => 'page',
+                'per_page_param' => 'per_page',
+            ],
+            '_capture_urls' => true,
+        ]);
+
+        $result = iterator_to_array($extractor->extract());
+
+        expect($result)->toBe([
+            ['id', 'name'],
+            [1, 'Alice'],
+            [2, 'Bob'],
+            [3, 'Charlie'],
+        ]);
+
+        $urls = $extractor->getCapturedUrls();
+        expect($urls[0])->toContain('page=1');
+        expect($urls[0])->toContain('per_page=2');
+        expect($urls[1])->toContain('page=2');
+        expect($urls[2])->toContain('page=3');
+    });
+
+    it('respects max_pages limit', function () {
+        $page1 = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+        $page2 = json_encode([
+            ['id' => 2, 'name' => 'Bob'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_responses' => [$page1, $page2],
+            'pagination' => [
+                'type' => 'offset',
+                'page_size' => 1,
+                'max_pages' => 1,
+            ],
+        ]);
+
+        $result = iterator_to_array($extractor->extract());
+
+        // Should only get first page
+        expect($result)->toBe([
+            ['id', 'name'],
+            [1, 'Alice'],
+        ]);
+    });
+
+    it('works without pagination', function () {
+        $response = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+            ['id' => 2, 'name' => 'Bob'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $response,
+        ]);
+
+        $result = iterator_to_array($extractor->extract());
+
+        expect($result)->toBe([
+            ['id', 'name'],
+            [1, 'Alice'],
+            [2, 'Bob'],
+        ]);
+    });
+
+    it('uses default pagination parameter names', function () {
+        $page1 = json_encode([['id' => 1]]);
+        $page2 = json_encode([]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_responses' => [$page1, $page2],
+            'pagination' => [
+                'type' => 'offset',
+                'page_size' => 10,
+            ],
+            '_capture_urls' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $urls = $extractor->getCapturedUrls();
+
+        expect($urls[0])->toContain('offset=');
+        expect($urls[0])->toContain('limit=');
+    });
+});
