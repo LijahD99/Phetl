@@ -14,6 +14,9 @@ use Phetl\Extract\Extractors\JsonExtractor;
 use Phetl\Load\Loaders\CsvLoader;
 use Phetl\Load\Loaders\DatabaseLoader;
 use Phetl\Load\Loaders\JsonLoader;
+use Phetl\Transform\Columns\ColumnAdder;
+use Phetl\Transform\Columns\ColumnRenamer;
+use Phetl\Transform\Columns\ColumnSelector;
 use Phetl\Transform\Rows\RowSelector;
 use PDO;
 use Traversable;
@@ -231,5 +234,93 @@ class Table implements IteratorAggregate
     public function skip(int $count): self
     {
         return new self(RowSelector::skip($this->materializedData, $count));
+    }
+
+    /**
+     * Select specific columns by name (cut in petl).
+     *
+     * @param string ...$columns Column names to select
+     */
+    public function selectColumns(string ...$columns): self
+    {
+        return new self(ColumnSelector::select($this->materializedData, $columns));
+    }
+
+    /**
+     * Alias for selectColumns (petl compatibility).
+     *
+     * @param string ...$columns Column names to select
+     */
+    public function cut(string ...$columns): self
+    {
+        return $this->selectColumns(...$columns);
+    }
+
+    /**
+     * Remove specific columns by name (cutout in petl).
+     *
+     * @param string ...$columns Column names to remove
+     */
+    public function removeColumns(string ...$columns): self
+    {
+        return new self(ColumnSelector::remove($this->materializedData, $columns));
+    }
+
+    /**
+     * Alias for removeColumns (petl compatibility).
+     *
+     * @param string ...$columns Column names to remove
+     */
+    public function cutout(string ...$columns): self
+    {
+        return $this->removeColumns(...$columns);
+    }
+
+    /**
+     * Rename columns using a mapping array.
+     *
+     * @param array<string, string> $mapping Old name => New name
+     */
+    public function renameColumns(array $mapping): self
+    {
+        return new self(ColumnRenamer::rename($this->materializedData, $mapping));
+    }
+
+    /**
+     * Alias for renameColumns (petl compatibility).
+     *
+     * @param array<string, string> $mapping Old name => New name
+     */
+    public function rename(array $mapping): self
+    {
+        return $this->renameColumns($mapping);
+    }
+
+    /**
+     * Add a new column with a computed value.
+     *
+     * @param \Closure|mixed $value Value or function(array $row): mixed
+     */
+    public function addColumn(string $name, mixed $value): self
+    {
+        return new self(ColumnAdder::add($this->materializedData, $name, $value));
+    }
+
+    /**
+     * Alias for addColumn (petl compatibility).
+     *
+     * @param \Closure|mixed $value Value or function(array $row): mixed
+     */
+    public function addField(string $name, mixed $value): self
+    {
+        return $this->addColumn($name, $value);
+    }
+
+    /**
+     * Add a row number column (1-indexed, excluding header).
+     */
+    public function addRowNumbers(string $columnName = 'row_number'): self
+    {
+        return new self(ColumnAdder::addRowNumbers($this->materializedData, $columnName));
     }
 }
