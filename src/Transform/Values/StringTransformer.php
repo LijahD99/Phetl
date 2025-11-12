@@ -35,7 +35,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = strtoupper((string)$row[$fieldIndex]);
             }
-            
+
             yield $row;
         }
     }
@@ -63,7 +63,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = strtolower((string)$row[$fieldIndex]);
             }
-            
+
             yield $row;
         }
     }
@@ -92,7 +92,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = trim((string)$row[$fieldIndex], $characters);
             }
-            
+
             yield $row;
         }
     }
@@ -121,7 +121,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = ltrim((string)$row[$fieldIndex], $characters);
             }
-            
+
             yield $row;
         }
     }
@@ -150,7 +150,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = rtrim((string)$row[$fieldIndex], $characters);
             }
-            
+
             yield $row;
         }
     }
@@ -178,11 +178,11 @@ class StringTransformer
             }
 
             if ($row[$fieldIndex] !== null) {
-                $row[$fieldIndex] = $length === null 
+                $row[$fieldIndex] = $length === null
                     ? substr((string)$row[$fieldIndex], $start)
                     : substr((string)$row[$fieldIndex], $start, $length);
             }
-            
+
             yield $row;
         }
     }
@@ -224,7 +224,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = substr((string)$row[$fieldIndex], -$length);
             }
-            
+
             yield $row;
         }
     }
@@ -260,7 +260,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = str_pad((string)$row[$fieldIndex], $length, $padString, $padType);
             }
-            
+
             yield $row;
         }
     }
@@ -302,7 +302,7 @@ class StringTransformer
             foreach ($sourceIndices as $idx) {
                 $values[] = (string)($row[$idx] ?? '');
             }
-            
+
             $row[$targetIndex] = implode($separator, $values);
             yield $row;
         }
@@ -333,7 +333,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = explode($delimiter, (string)$row[$fieldIndex], $limit);
             }
-            
+
             yield $row;
         }
     }
@@ -363,7 +363,7 @@ class StringTransformer
             if ($row[$fieldIndex] !== null) {
                 $row[$fieldIndex] = preg_replace($pattern, $replacement, (string)$row[$fieldIndex]);
             }
-            
+
             yield $row;
         }
     }
@@ -404,7 +404,7 @@ class StringTransformer
             } else {
                 $row[$targetIndex] = null;
             }
-            
+
             yield $row;
         }
     }
@@ -445,7 +445,7 @@ class StringTransformer
             } else {
                 $row[$targetIndex] = false;
             }
-            
+
             yield $row;
         }
     }
@@ -481,7 +481,7 @@ class StringTransformer
             } else {
                 $row[$targetIndex] = 0;
             }
-            
+
             yield $row;
         }
     }

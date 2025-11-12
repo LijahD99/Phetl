@@ -91,7 +91,7 @@ describe('String Transformation Pipeline Integration', function () {
 
         // In practice: ->pad('code', 5, '0', STR_PAD_LEFT) via StringTransformer
         $result = Table::fromArray($data);
-        
+
         expect($result->toArray())->toHaveCount(4);
     });
 

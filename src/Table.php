@@ -26,6 +26,7 @@ use Phetl\Transform\Rows\RowSelector;
 use Phetl\Transform\Rows\RowSorter;
 use Phetl\Transform\Set\SetOperation;
 use Phetl\Transform\Validation\Validator;
+use Phetl\Transform\Values\ConditionalTransformer;
 use Phetl\Transform\Values\StringTransformer;
 use Phetl\Transform\Values\ValueConverter;
 use Phetl\Transform\Values\ValueReplacer;
@@ -969,5 +970,94 @@ class Table implements IteratorAggregate
     public function extractPattern(string $sourceField, string $targetField, string $pattern): self
     {
         return new self(StringTransformer::extract($this->materializedData, $sourceField, $targetField, $pattern));
+    }
+
+    // ========================================
+    // Conditional Transformations
+    // ========================================
+
+    /**
+     * Apply conditional logic to create new field.
+     *
+     * @param string $field Field to evaluate
+     * @param callable $condition Function returning bool
+     * @param string $target Target field name
+     * @param mixed|callable $thenValue Value if condition is true
+     * @param mixed|callable $elseValue Value if condition is false
+     * @return self
+     */
+    public function when(
+        string $field,
+        callable $condition,
+        string $target,
+        mixed $thenValue,
+        mixed $elseValue
+    ): self {
+        return new self(ConditionalTransformer::when(
+            $this->materializedData,
+            $field,
+            $condition,
+            $target,
+            $thenValue,
+            $elseValue
+        ));
+    }
+
+    /**
+     * Return first non-null value from multiple fields.
+     *
+     * @param string $target Target field name
+     * @param array<string> $fields Fields to check in order
+     * @return self
+     */
+    public function coalesce(string $target, array $fields): self
+    {
+        return new self(ConditionalTransformer::coalesce($this->materializedData, $target, $fields));
+    }
+
+    /**
+     * Return null if condition is true, otherwise return original value.
+     *
+     * @param string $field Field to evaluate
+     * @param string $target Target field name
+     * @param callable $condition Function returning bool
+     * @return self
+     */
+    public function nullIf(string $field, string $target, callable $condition): self
+    {
+        return new self(ConditionalTransformer::nullIf($this->materializedData, $field, $target, $condition));
+    }
+
+    /**
+     * Replace null values with default.
+     *
+     * @param string $field Field to check
+     * @param string $target Target field name
+     * @param mixed|callable $default Default value if null
+     * @return self
+     */
+    public function ifNull(string $field, string $target, mixed $default): self
+    {
+        return new self(ConditionalTransformer::ifNull($this->materializedData, $field, $target, $default));
+    }
+
+    /**
+     * Evaluate multiple conditions (SQL CASE WHEN).
+     *
+     * @param string $field Field to evaluate
+     * @param string $target Target field name
+     * @param array<array{callable, mixed|callable}> $conditions Array of [condition, value] pairs
+     * @param mixed|callable $default Default value if no match
+     * @return self
+     */
+    public function case(string $field, string $target, array $conditions, mixed $default): self
+    {
+        return new self(ConditionalTransformer::case(
+            $this->materializedData,
+            $field,
+            $target,
+            $conditions,
+            $default
+        ));
     }
 }
