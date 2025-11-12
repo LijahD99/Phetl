@@ -174,3 +174,196 @@ describe('RestApiExtractor', function () {
         expect($result[2])->toBe([2, false, true]);
     });
 });
+
+describe('RestApiExtractor - Authentication', function () {
+    it('sends bearer token in authorization header', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'bearer',
+                'token' => 'test-token-123',
+            ],
+            '_capture_headers' => true, // Special flag to capture headers
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $headers = $extractor->getCapturedHeaders();
+
+        expect($headers)->toHaveKey('Authorization');
+        expect($headers['Authorization'])->toBe('Bearer test-token-123');
+    });
+
+    it('sends api key in custom header', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'api_key',
+                'key' => 'secret-key-456',
+                'location' => 'header',
+                'header_name' => 'X-API-Key',
+            ],
+            '_capture_headers' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $headers = $extractor->getCapturedHeaders();
+
+        expect($headers)->toHaveKey('X-API-Key');
+        expect($headers['X-API-Key'])->toBe('secret-key-456');
+    });
+
+    it('sends api key in default header when header_name not specified', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'api_key',
+                'key' => 'secret-key-789',
+                'location' => 'header',
+            ],
+            '_capture_headers' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $headers = $extractor->getCapturedHeaders();
+
+        expect($headers)->toHaveKey('X-API-Key');
+        expect($headers['X-API-Key'])->toBe('secret-key-789');
+    });
+
+    it('sends api key in query parameter', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'api_key',
+                'key' => 'query-key-123',
+                'location' => 'query',
+                'param_name' => 'api_key',
+            ],
+            '_capture_url' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $url = $extractor->getCapturedUrl();
+
+        expect($url)->toContain('api_key=query-key-123');
+    });
+
+    it('uses default param name for query api key', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'api_key',
+                'key' => 'query-key-456',
+                'location' => 'query',
+            ],
+            '_capture_url' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $url = $extractor->getCapturedUrl();
+
+        expect($url)->toContain('api_key=query-key-456');
+    });
+
+    it('sends basic auth credentials', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            'auth' => [
+                'type' => 'basic',
+                'username' => 'user123',
+                'password' => 'pass456',
+            ],
+            '_capture_headers' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $headers = $extractor->getCapturedHeaders();
+
+        expect($headers)->toHaveKey('Authorization');
+        expect($headers['Authorization'])->toBe('Basic ' . base64_encode('user123:pass456'));
+    });
+
+    it('works without authentication', function () {
+        $mockResponse = json_encode([
+            ['id' => 1, 'name' => 'Alice'],
+        ]);
+
+        $extractor = new RestApiExtractor('https://api.example.com/users', [
+            '_mock_response' => $mockResponse,
+            '_capture_headers' => true,
+        ]);
+
+        iterator_to_array($extractor->extract());
+        $headers = $extractor->getCapturedHeaders();
+
+        expect($headers)->not->toHaveKey('Authorization');
+        expect($headers)->not->toHaveKey('X-API-Key');
+    });
+
+    it('throws exception for invalid auth type', function () {
+        new RestApiExtractor('https://api.example.com/users', [
+            'auth' => [
+                'type' => 'invalid_type',
+            ],
+        ]);
+    })->throws(InvalidArgumentException::class, 'Invalid auth type');
+
+    it('throws exception when bearer token missing', function () {
+        new RestApiExtractor('https://api.example.com/users', [
+            'auth' => [
+                'type' => 'bearer',
+            ],
+        ]);
+    })->throws(InvalidArgumentException::class, 'Bearer token is required');
+
+    it('throws exception when api key missing', function () {
+        new RestApiExtractor('https://api.example.com/users', [
+            'auth' => [
+                'type' => 'api_key',
+                'location' => 'header',
+            ],
+        ]);
+    })->throws(InvalidArgumentException::class, 'API key is required');
+
+    it('throws exception when basic auth username missing', function () {
+        new RestApiExtractor('https://api.example.com/users', [
+            'auth' => [
+                'type' => 'basic',
+                'password' => 'pass123',
+            ],
+        ]);
+    })->throws(InvalidArgumentException::class, 'Username and password are required');
+
+    it('throws exception when basic auth password missing', function () {
+        new RestApiExtractor('https://api.example.com/users', [
+            'auth' => [
+                'type' => 'basic',
+                'username' => 'user123',
+            ],
+        ]);
+    })->throws(InvalidArgumentException::class, 'Username and password are required');
+});
