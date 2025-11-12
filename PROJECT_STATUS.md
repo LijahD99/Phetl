@@ -2,7 +2,7 @@
 
 ## Current Status: Active Development ✅
 
-### Completed Features (551 tests, 1,065 assertions)
+### Completed Features (554 tests, 1,065 assertions)
 
 #### ✅ Core I/O Layer
 - **ArrayExtractor** - Extract from PHP arrays (7 tests)
@@ -93,7 +93,7 @@
   - Table methods: validateRequired(), validateOrFail(), validRows(), invalidRows()
 
 #### ✅ Window Functions
-- **WindowFunctions.php** - Analytical window operations (20 tests)
+- **WindowFunctions.php** - Analytical window operations (23 tests)
   - lag(): Access previous row values with offset and default support
   - lead(): Access next row values with offset and default support
   - rowNumber(): Sequential row numbering within partitions
@@ -102,13 +102,13 @@
   - percentRank(): Percentage ranking from 0.0 to 1.0
   - All functions support partitioning by field(s)
   - Ordering support for sequential operations
-  - **Note**: 3 tests pending for partition row-order preservation
+  - ✅ Preserves original row order when partitioning
 
 ### Architecture Highlights
 
 ✅ **PSR-12 Compliant** - All code follows PSR-12 standards
 ✅ **PHPStan Max Level** - Passing static analysis at maximum level
-✅ **Comprehensive Tests** - 551 tests, 1,065 assertions (3 pending refinements)
+✅ **Comprehensive Tests** - 554 tests, 1,065 assertions, all passing
 ✅ **Lazy Evaluation** - Generators for memory efficiency
 ✅ **Dual API** - Improved names + petl-compatible aliases
 ✅ **Fluent Chaining** - All transformations support method chaining
@@ -123,9 +123,10 @@
 - ✅ Validation framework
 
 ### Completed - Phase 5 ✅
-- ✅ Window functions (lead, lag, rank, denseRank, rowNumber, percentRank) - Core implementation complete
-  - Core functionality implemented
-  - Pending: Partition row-order preservation refinement (3 tests)
+- ✅ Window functions (lead, lag, rank, denseRank, rowNumber, percentRank) - Complete
+  - All functionality implemented
+  - Partition row-order preservation fixed
+  - All 23 tests passing
 - ✅ RESTful API extractor with authentication, pagination, and response mapping
 
 ### Planned - Phase 6
@@ -135,7 +136,7 @@
 
 ## Development Stats
 
-- **Total Tests**: 551 (4 skipped, 3 pending refinements)
+- **Total Tests**: 554 (4 skipped - Windows file permissions)
 - **Total Assertions**: 1,065
 - **Test Coverage**: Unit + Integration
 - **Code Quality**: PHPStan max level, PSR-12 compliant
