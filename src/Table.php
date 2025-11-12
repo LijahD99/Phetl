@@ -25,9 +25,11 @@ use Phetl\Transform\Rows\RowFilter;
 use Phetl\Transform\Rows\RowSelector;
 use Phetl\Transform\Rows\RowSorter;
 use Phetl\Transform\Set\SetOperation;
+use Phetl\Transform\Validation\Validator;
 use Phetl\Transform\Values\ValueConverter;
 use Phetl\Transform\Values\ValueReplacer;
 use PDO;
+use RuntimeException;
 use Traversable;
 
 /**
@@ -795,5 +797,112 @@ class Table implements IteratorAggregate
     public function isUnique(string|array|null $fields = null): bool
     {
         return Deduplicator::isUnique($this->materializedData, $fields);
+    }
+
+    // =================================================================
+    // Validation Operations
+    // =================================================================
+
+    /**
+     * Validate required fields have non-null, non-empty values.
+     *
+     * @param array<string> $fields
+     * @return array{valid: bool, errors: array<int, array{row: int, field: string, rule: string, message: string}>}
+     */
+    public function validateRequired(array $fields): array
+    {
+        return Validator::required($this->materializedData, $fields);
+    }
+
+    /**
+     * Validate with multiple rules.
+     *
+     * @param array<string, array<int, string|array<int, mixed>>> $rules
+     * @return array{valid: bool, errors: array<int, array{row: int, field: string, rule: string, message: string}>}
+     */
+    public function validate(array $rules): array
+    {
+        return Validator::validate($this->materializedData, $rules);
+    }
+
+    /**
+     * Validate and throw exception if validation fails.
+     *
+     * @param array<string, array<int, string|array<int, mixed>>> $rules
+     * @return self
+     * @throws RuntimeException
+     */
+    public function validateOrFail(array $rules): self
+    {
+        $result = Validator::validate($this->materializedData, $rules);
+        
+        if (!$result['valid']) {
+            $errorCount = count($result['errors']);
+            throw new RuntimeException("Validation failed with $errorCount error(s)");
+        }
+
+        return $this;
+    }
+
+    /**
+     * Filter to only valid rows.
+     *
+     * @param array<string, array<int, string|array<int, mixed>>> $rules
+     * @return self
+     */
+    public function filterValid(array $rules): self
+    {
+        $validationResult = Validator::validate($this->materializedData, $rules);
+        $invalidRows = [];
+        
+        foreach ($validationResult['errors'] as $error) {
+            $invalidRows[$error['row']] = true;
+        }
+
+        $filtered = [];
+        $filtered[] = $this->materializedData[0]; // Header
+
+        foreach ($this->materializedData as $index => $row) {
+            if ($index === 0) {
+                continue; // Skip header
+            }
+            
+            if (!isset($invalidRows[$index])) {
+                $filtered[] = $row;
+            }
+        }
+
+        return new self($filtered);
+    }
+
+    /**
+     * Filter to only invalid rows.
+     *
+     * @param array<string, array<int, string|array<int, mixed>>> $rules
+     * @return self
+     */
+    public function filterInvalid(array $rules): self
+    {
+        $validationResult = Validator::validate($this->materializedData, $rules);
+        $invalidRows = [];
+        
+        foreach ($validationResult['errors'] as $error) {
+            $invalidRows[$error['row']] = true;
+        }
+
+        $filtered = [];
+        $filtered[] = $this->materializedData[0]; // Header
+
+        foreach ($this->materializedData as $index => $row) {
+            if ($index === 0) {
+                continue; // Skip header
+            }
+            
+            if (isset($invalidRows[$index])) {
+                $filtered[] = $row;
+            }
+        }
+
+        return new self($filtered);
     }
 }

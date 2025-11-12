@@ -22,9 +22,9 @@ class Deduplicator
     public static function distinct(iterable $data, string|array|null $fields = null): Generator
     {
         $fields = $fields !== null ? (is_array($fields) ? $fields : [$fields]) : null;
-        
+
         $tableData = self::processTable($data);
-        
+
         // Get field indices if fields specified
         $fieldIndices = null;
         if ($fields !== null) {
@@ -76,9 +76,9 @@ class Deduplicator
     public static function duplicates(iterable $data, string|array|null $fields = null): Generator
     {
         $fields = $fields !== null ? (is_array($fields) ? $fields : [$fields]) : null;
-        
+
         $tableData = self::processTable($data);
-        
+
         // Get field indices if fields specified
         $fieldIndices = null;
         if ($fields !== null) {
@@ -111,7 +111,7 @@ class Deduplicator
             }
 
             $key = serialize($keyValues);
-            
+
             if ($counts[$key] > 1 && !isset($seen[$key])) {
                 $seen[$key] = true;
                 yield $row;
@@ -133,9 +133,9 @@ class Deduplicator
         string $countField = 'count'
     ): Generator {
         $fields = $fields !== null ? (is_array($fields) ? $fields : [$fields]) : null;
-        
+
         $tableData = self::processTable($data);
-        
+
         // Get field indices if fields specified
         $fieldIndices = null;
         if ($fields !== null) {
@@ -145,7 +145,7 @@ class Deduplicator
         // Count occurrences and store first occurrence of each unique row
         $counts = [];
         $firstOccurrence = [];
-        
+
         foreach ($tableData['rows'] as $row) {
             if ($fieldIndices !== null) {
                 $keyValues = array_map(fn($i) => $row[$i] ?? null, $fieldIndices);
@@ -154,7 +154,7 @@ class Deduplicator
             }
 
             $key = serialize($keyValues);
-            
+
             if (!isset($counts[$key])) {
                 $counts[$key] = 0;
                 $firstOccurrence[$key] = $row;
@@ -181,9 +181,9 @@ class Deduplicator
     public static function isUnique(iterable $data, string|array|null $fields = null): bool
     {
         $fields = $fields !== null ? (is_array($fields) ? $fields : [$fields]) : null;
-        
+
         $tableData = self::processTable($data);
-        
+
         // Get field indices if fields specified
         $fieldIndices = null;
         if ($fields !== null) {
@@ -204,7 +204,7 @@ class Deduplicator
             if (isset($seen[$key])) {
                 return false; // Found duplicate
             }
-            
+
             $seen[$key] = true;
         }
 
