@@ -34,7 +34,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Phetl\\": "src/"
+            "Phetl\\": "src/",
+            "Phetl\\Benchmarks\\": "benchmarks/"
         }
     },
     "autoload-dev": {

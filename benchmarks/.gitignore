@@ -1,0 +1,8 @@
+# Ignore benchmark results
+results/
+*.json
+*.csv
+
+# Ignore temporary files
+*.tmp
+*.log
