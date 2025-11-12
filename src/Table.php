@@ -10,10 +10,12 @@ use Phetl\Contracts\LoaderInterface;
 use Phetl\Extract\Extractors\ArrayExtractor;
 use Phetl\Extract\Extractors\CsvExtractor;
 use Phetl\Extract\Extractors\DatabaseExtractor;
+use Phetl\Extract\Extractors\ExcelExtractor;
 use Phetl\Extract\Extractors\JsonExtractor;
 use Phetl\Extract\Extractors\RestApiExtractor;
 use Phetl\Load\Loaders\CsvLoader;
 use Phetl\Load\Loaders\DatabaseLoader;
+use Phetl\Load\Loaders\ExcelLoader;
 use Phetl\Load\Loaders\JsonLoader;
 use Phetl\Transform\Aggregation\Aggregator;
 use Phetl\Transform\Columns\ColumnAdder;
@@ -116,6 +118,17 @@ class Table implements IteratorAggregate
     }
 
     /**
+     * Create a Table from an Excel file.
+     *
+     * @param string|int|null $sheet Sheet name (string), index (int), or null for active sheet
+     */
+    public static function fromExcel(string $filePath, string|int|null $sheet = null): self
+    {
+        $extractor = new ExcelExtractor($filePath, $sheet);
+        return new self($extractor->extract());
+    }
+
+    /**
      * Create a Table from any extractor.
      */
     public static function fromExtractor(ExtractorInterface $extractor): self
@@ -151,6 +164,17 @@ class Table implements IteratorAggregate
     public function toDatabase(PDO $pdo, string $tableName): int
     {
         $loader = new DatabaseLoader($pdo, $tableName);
+        return $loader->load($this->materializedData);
+    }
+
+    /**
+     * Load data to an Excel file.
+     *
+     * @param string|int|null $sheet Sheet name (string), index (int), or null for active sheet
+     */
+    public function toExcel(string $filePath, string|int|null $sheet = null): int
+    {
+        $loader = new ExcelLoader($filePath, $sheet);
         return $loader->load($this->materializedData);
     }
 
