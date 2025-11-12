@@ -42,29 +42,39 @@ final class WindowFunctions
         // Yield updated header
         yield $tableData['header'];
 
-        // Group by partition if needed
+        // Group by partition if needed, preserving original order
         if ($partitionIndex !== null) {
             $partitions = [];
+            $rowIndex = 0;
             foreach ($tableData['rows'] as $row) {
                 $partition = serialize($row[$partitionIndex] ?? null);
                 if (!isset($partitions[$partition])) {
                     $partitions[$partition] = [];
                 }
-                $partitions[$partition][] = $row;
+                $partitions[$partition][] = ['row' => $row, 'index' => $rowIndex++];
             }
 
-            // Process each partition
+            // Calculate lag values for each partition
+            $results = [];
             foreach ($partitions as $partitionRows) {
                 $buffer = [];
-                foreach ($partitionRows as $row) {
+                foreach ($partitionRows as $item) {
+                    $row = $item['row'];
                     // Get lagged value
                     $row[$targetIndex] = count($buffer) >= $offset ? $buffer[count($buffer) - $offset] : $default;
 
                     // Add current value to buffer
                     $buffer[] = $row[$fieldIndex] ?? null;
 
-                    yield $row;
+                    // Store with original index
+                    $results[$item['index']] = $row;
                 }
+            }
+
+            // Yield rows in original order
+            ksort($results);
+            foreach ($results as $row) {
+                yield $row;
             }
         } else {
             // No partitioning
@@ -108,20 +118,35 @@ final class WindowFunctions
         // Yield updated header
         yield $tableData['header'];
 
-        // Group rows by partition if partitioning
+        // Group rows by partition if partitioning, preserving original order
         if ($partitionIndex !== null) {
             $partitions = [];
+            $rowIndex = 0;
             foreach ($tableData['rows'] as $row) {
                 $partition = serialize($row[$partitionIndex] ?? null);
-                $partitions[$partition][] = $row;
+                $partitions[$partition][] = ['row' => $row, 'index' => $rowIndex++];
             }
 
-            // Process each partition
+            // Calculate lead values for each partition
+            $results = [];
             foreach ($partitions as $partitionRows) {
-                $processedRows = self::applyLead($partitionRows, $fieldIndex, $targetIndex, $offset, $default);
-                foreach ($processedRows as $row) {
-                    yield $row;
+                $processedRows = self::applyLead(
+                    array_column($partitionRows, 'row'),
+                    $fieldIndex,
+                    $targetIndex,
+                    $offset,
+                    $default
+                );
+
+                foreach ($processedRows as $i => $row) {
+                    $results[$partitionRows[$i]['index']] = $row;
                 }
+            }
+
+            // Yield rows in original order
+            ksort($results);
+            foreach ($results as $row) {
+                yield $row;
             }
         } else {
             // Process all rows
@@ -197,18 +222,28 @@ final class WindowFunctions
         if ($partitionBy !== null) {
             $partitionIndex = self::getFieldIndex($tableData['header'], $partitionBy);
             $partitions = [];
+            $rowIndex = 0;
 
             foreach ($rows as $row) {
                 $partition = serialize($row[$partitionIndex] ?? null);
-                $partitions[$partition][] = $row;
+                $partitions[$partition][] = ['row' => $row, 'index' => $rowIndex++];
             }
 
+            // Calculate row numbers for each partition
+            $results = [];
             foreach ($partitions as $partitionRows) {
                 $rowNum = 1;
-                foreach ($partitionRows as $row) {
+                foreach ($partitionRows as $item) {
+                    $row = $item['row'];
                     $row[$targetIndex] = $rowNum++;
-                    yield $row;
+                    $results[$item['index']] = $row;
                 }
+            }
+
+            // Yield rows in original order
+            ksort($results);
+            foreach ($results as $row) {
+                yield $row;
             }
         } else {
             $rowNum = 1;
