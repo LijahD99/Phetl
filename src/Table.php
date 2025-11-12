@@ -20,6 +20,7 @@ use Phetl\Transform\Columns\ColumnSelector;
 use Phetl\Transform\Rows\RowFilter;
 use Phetl\Transform\Rows\RowSelector;
 use Phetl\Transform\Rows\RowSorter;
+use Phetl\Transform\Set\SetOperation;
 use Phetl\Transform\Values\ValueConverter;
 use Phetl\Transform\Values\ValueReplacer;
 use PDO;
@@ -540,5 +541,57 @@ class Table implements IteratorAggregate
     public function whereContains(string $field, string $substring): self
     {
         return new self(RowFilter::whereContains($this->materializedData, $field, $substring));
+    }
+
+    // =================================================================
+    // Set Operations
+    // =================================================================
+
+    /**
+     * Concatenate this table with other tables vertically.
+     * Headers must match exactly.
+     *
+     * @param Table ...$tables Tables to concatenate
+     */
+    public function concat(self ...$tables): self
+    {
+        $iterables = [$this->materializedData];
+        foreach ($tables as $table) {
+            $iterables[] = $table->materializedData;
+        }
+
+        return new self(SetOperation::concat(...$iterables));
+    }
+
+    /**
+     * Union this table with other tables (concat + remove duplicates).
+     * Headers must match exactly.
+     *
+     * @param Table ...$tables Tables to union
+     */
+    public function union(self ...$tables): self
+    {
+        $iterables = [$this->materializedData];
+        foreach ($tables as $table) {
+            $iterables[] = $table->materializedData;
+        }
+
+        return new self(SetOperation::union(...$iterables));
+    }
+
+    /**
+     * Merge tables with different headers (combines all columns).
+     * Missing values are filled with null.
+     *
+     * @param Table ...$tables Tables to merge
+     */
+    public function merge(self ...$tables): self
+    {
+        $iterables = [$this->materializedData];
+        foreach ($tables as $table) {
+            $iterables[] = $table->materializedData;
+        }
+
+        return new self(SetOperation::merge(...$iterables));
     }
 }
