@@ -2,7 +2,7 @@
 
 ## Current Status: Active Development ✅
 
-### Completed Features (289 tests, 663 assertions)
+### Completed Features (488 tests, 954 assertions)
 
 #### ✅ Core I/O Layer
 - **ArrayExtractor** - Extract from PHP arrays (7 tests)
@@ -37,6 +37,8 @@
 #### ✅ Value Transformations
 - **ValueConverter.php** - convert(), convertMultiple() (16 tests)
 - **ValueReplacer.php** - replace(), replaceMap(), replaceAll() (7 tests)
+- **StringTransformer.php** - upper(), lower(), trim(), substring(), concat(), split(), replace(), extract(), match(), length() (30 tests)
+- **ConditionalTransformer.php** - when(), coalesce(), nullIf(), ifNull(), case() (31 tests)
 
 #### ✅ Set Operations
 - **SetOperation.php** - concat(), union(), merge() (31 tests)
@@ -58,24 +60,49 @@
   - Custom aggregation functions via closures
   - Table methods: aggregate(), groupBy(), countBy(), sumField()
 
+#### ✅ Reshaping Operations
+- **Reshaper.php** - unpivot()/melt(), pivot(), transpose() (20 tests)
+  - unpivot/melt: Wide to long format conversion
+  - pivot: Long to wide format with optional aggregation
+  - transpose: Swap rows and columns
+  - Flexible field selection and naming
+
+#### ✅ Deduplication Operations
+- **Deduplicator.php** - distinct()/unique(), duplicates(), countDistinct(), isUnique() (29 tests)
+  - Remove duplicate rows based on all or specific fields
+  - Find duplicate rows for data quality checks
+  - Count occurrences of unique values
+  - Validate uniqueness constraints
+
+#### ✅ Validation Framework
+- **Validator.php** - Comprehensive data validation (29 tests)
+  - required(): Non-null, non-empty validation
+  - type(): Type checking (int, float, string, bool, array, object, null)
+  - range(): Numeric range validation (min/max)
+  - pattern(): Regex pattern matching
+  - in(): Whitelist validation
+  - unique(): Uniqueness constraint validation
+  - custom(): Custom validation functions
+  - validate(): Multi-rule batch validation
+  - Table methods: validateRequired(), validateOrFail(), validRows(), invalidRows()
+
 ### Architecture Highlights
 
 ✅ **PSR-12 Compliant** - All code follows PSR-12 standards
 ✅ **PHPStan Max Level** - Passing static analysis at maximum level
-✅ **Comprehensive Tests** - 289 tests, 663 assertions, all passing
+✅ **Comprehensive Tests** - 488 tests, 954 assertions, all passing
 ✅ **Lazy Evaluation** - Generators for memory efficiency
 ✅ **Dual API** - Improved names + petl-compatible aliases
 ✅ **Fluent Chaining** - All transformations support method chaining
 
 ## Next Steps
 
-### In Progress
-- [ ] Reshaping operations (pivot, unpivot, transpose)
-
-### Planned - Phase 4
-- [ ] Deduplication (unique, distinct, duplicates)
-- [ ] Validation framework
-- [ ] Additional string/regex operations
+### Completed - Phase 4 ✅
+- ✅ String operations (upper, lower, trim, concat, split, etc.)
+- ✅ Conditional operations (when, coalesce, nullIf, ifNull, case)
+- ✅ Reshaping operations (pivot, unpivot, transpose)
+- ✅ Deduplication (unique, distinct, duplicates)
+- ✅ Validation framework
 
 ### Planned - Phase 5
 - [ ] Additional I/O formats (Excel, Parquet)
@@ -85,8 +112,8 @@
 
 ## Development Stats
 
-- **Total Tests**: 289 (4 skipped)
-- **Total Assertions**: 663
+- **Total Tests**: 488 (4 skipped)
+- **Total Assertions**: 954
 - **Test Coverage**: Unit + Integration
 - **Code Quality**: PHPStan max level, PSR-12 compliant
 - **Files Created**: 40+ source files, 20+ test files
