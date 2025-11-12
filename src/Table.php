@@ -14,6 +14,7 @@ use Phetl\Extract\Extractors\JsonExtractor;
 use Phetl\Load\Loaders\CsvLoader;
 use Phetl\Load\Loaders\DatabaseLoader;
 use Phetl\Load\Loaders\JsonLoader;
+use Phetl\Transform\Aggregation\Aggregator;
 use Phetl\Transform\Columns\ColumnAdder;
 use Phetl\Transform\Columns\ColumnRenamer;
 use Phetl\Transform\Columns\ColumnSelector;
@@ -630,5 +631,48 @@ class Table implements IteratorAggregate
     public function rightJoin(self $right, string|array $leftKey, string|array|null $rightKey = null): self
     {
         return new self(Join::right($this->materializedData, $right->materializedData, $leftKey, $rightKey));
+    }
+
+    /**
+     * Group rows by field(s) and apply aggregations.
+     *
+     * @param string|array<string> $groupBy Field(s) to group by
+     * @param array<string, callable|string> $aggregations Map of output field => aggregation function
+     */
+    public function aggregate(string|array $groupBy, array $aggregations): self
+    {
+        return new self(Aggregator::aggregate($this->materializedData, $groupBy, $aggregations));
+    }
+
+    /**
+     * Alias for aggregate() - petl compatibility.
+     *
+     * @param string|array<string> $groupBy Field(s) to group by
+     * @param array<string, callable|string> $aggregations Map of output field => aggregation function
+     */
+    public function groupBy(string|array $groupBy, array $aggregations): self
+    {
+        return $this->aggregate($groupBy, $aggregations);
+    }
+
+    /**
+     * Count rows grouped by field(s).
+     *
+     * @param string|array<string> $groupBy Field(s) to group by
+     */
+    public function countBy(string|array $groupBy): self
+    {
+        return new self(Aggregator::count($this->materializedData, $groupBy));
+    }
+
+    /**
+     * Sum values of a field, optionally grouped.
+     *
+     * @param string $field Field to sum
+     * @param string|array<string>|null $groupBy Field(s) to group by
+     */
+    public function sumField(string $field, string|array|null $groupBy = null): self
+    {
+        return new self(Aggregator::sum($this->materializedData, $field, $groupBy));
     }
 }
