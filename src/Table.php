@@ -19,6 +19,8 @@ use Phetl\Transform\Columns\ColumnRenamer;
 use Phetl\Transform\Columns\ColumnSelector;
 use Phetl\Transform\Rows\RowFilter;
 use Phetl\Transform\Rows\RowSelector;
+use Phetl\Transform\Values\ValueConverter;
+use Phetl\Transform\Values\ValueReplacer;
 use PDO;
 use Traversable;
 
@@ -83,7 +85,7 @@ class Table implements IteratorAggregate
     /**
      * Create a Table from a database query.
      *
-     * @param array<int|string, mixed> $params
+     * @param array<string, mixed> $params
      */
     public static function fromDatabase(PDO $pdo, string $query, array $params = []): self
     {
@@ -323,6 +325,61 @@ class Table implements IteratorAggregate
     public function addRowNumbers(string $columnName = 'row_number'): self
     {
         return new self(ColumnAdder::addRowNumbers($this->materializedData, $columnName));
+    }
+
+    /**
+     * Apply a conversion function to values in a field.
+     *
+     * @param string $field Field name
+     * @param callable|string $converter Conversion function
+     */
+    public function convert(string $field, callable|string $converter): self
+    {
+        return new self(ValueConverter::convert($this->materializedData, $field, $converter));
+    }
+
+    /**
+     * Apply conversion functions to multiple fields.
+     *
+     * @param array<string, callable|string> $conversions Field => converter mapping
+     */
+    public function convertMultiple(array $conversions): self
+    {
+        return new self(ValueConverter::convertMultiple($this->materializedData, $conversions));
+    }
+
+    /**
+     * Replace a specific value in a field.
+     *
+     * @param string $field Field name
+     * @param mixed $oldValue Value to replace
+     * @param mixed $newValue Replacement value
+     */
+    public function replace(string $field, mixed $oldValue, mixed $newValue): self
+    {
+        return new self(ValueReplacer::replace($this->materializedData, $field, $oldValue, $newValue));
+    }
+
+    /**
+     * Replace multiple values in a field using a mapping.
+     *
+     * @param string $field Field name
+     * @param array<mixed, mixed> $mapping Old value => New value
+     */
+    public function replaceMap(string $field, array $mapping): self
+    {
+        return new self(ValueReplacer::replaceMap($this->materializedData, $field, $mapping));
+    }
+
+    /**
+     * Replace all occurrences of a value across all fields.
+     *
+     * @param mixed $oldValue Value to replace
+     * @param mixed $newValue Replacement value
+     */
+    public function replaceAll(mixed $oldValue, mixed $newValue): self
+    {
+        return new self(ValueReplacer::replaceAll($this->materializedData, $oldValue, $newValue));
     }
 
     /**

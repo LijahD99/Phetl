@@ -175,17 +175,13 @@ class TableTest extends TestCase
         $this->assertEquals(['name', 'age', 'city'], $table->header());
     }
 
-    public function test_it_returns_empty_header_for_empty_table(): void
+    public function test_it_handles_header_only_table(): void
     {
-        // Create a table with just empty data using a generator to bypass validation
-        $emptyGenerator = function (): \Generator {
-            return;
-            yield; // Make it a generator
-        };
+        // Create a table with just header, no data rows
+        $table = Table::fromArray([['id', 'name']]);
 
-        $table = new Table($emptyGenerator());
-
-        $this->assertEquals([], $table->header());
+        $this->assertEquals(['id', 'name'], $table->header());
+        $this->assertEquals(1, $table->count()); // Count includes header
     }
 
     public function test_it_writes_to_csv(): void
