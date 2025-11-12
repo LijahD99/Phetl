@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Phetl\Load\Loaders;
+
+use InvalidArgumentException;
+use Phetl\Contracts\LoaderInterface;
+
+/**
+ * Loads data to CSV files.
+ *
+ * Supports configurable delimiters, enclosures, and escape characters.
+ * Handles complex data including multiline fields and special characters.
+ */
+final class CsvLoader implements LoaderInterface
+{
+    /**
+     * @param string $filePath Path to the CSV file
+     * @param string $delimiter Field delimiter (default: comma)
+     * @param string $enclosure Field enclosure character (default: double quote)
+     * @param string $escape Escape character (default: backslash)
+     */
+    public function __construct(
+        private readonly string $filePath,
+        private readonly string $delimiter = ',',
+        private readonly string $enclosure = '"',
+        private readonly string $escape = '\\'
+    ) {
+        $this->validate();
+    }
+
+    /**
+     * @param iterable<int, array<int|string, mixed>> $data
+     * @return int Number of rows loaded (excluding header)
+     */
+    public function load(iterable $data): int
+    {
+        $handle = fopen($this->filePath, 'w');
+
+        if ($handle === false) {
+            throw new InvalidArgumentException('Cannot open file for writing: ' . $this->filePath);
+        }
+
+        $rowCount = 0;
+        $isFirstRow = true;
+
+        try {
+            foreach ($data as $row) {
+                /** @var array<int|string, bool|float|int|string|null> $row */
+                fputcsv($handle, $row, $this->delimiter, $this->enclosure, $this->escape);
+
+                if (! $isFirstRow) {
+                    $rowCount++;
+                }
+                $isFirstRow = false;
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return $rowCount;
+    }
+
+    /**
+     * Validate file path is writable.
+     */
+    private function validate(): void
+    {
+        $directory = dirname($this->filePath);
+
+        // Create directory if it doesn't exist
+        if (! is_dir($directory)) {
+            if (! @mkdir($directory, 0o755, true)) {
+                throw new InvalidArgumentException('Cannot create directory: ' . $directory);
+            }
+        }
+
+        // Check if directory is writable
+        if (! is_writable($directory)) {
+            throw new InvalidArgumentException('Directory is not writable: ' . $directory);
+        }
+    }
+}
