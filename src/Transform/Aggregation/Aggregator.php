@@ -15,32 +15,35 @@ class Aggregator
     /**
      * Group rows by field(s) and aggregate.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string|array<string> $groupBy Field(s) to group by
      * @param array<string, callable|string> $aggregations Map of output field => aggregation function
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function aggregate(
-        iterable $data,
+        array $headers,
+        array $data,
         string|array $groupBy,
         array $aggregations
-    ): Generator {
+    ): array {
         $groupByFields = is_array($groupBy) ? $groupBy : [$groupBy];
 
         if (empty($aggregations)) {
             throw new InvalidArgumentException('At least one aggregation must be specified');
         }
 
-        // Process table
-        $tableData = self::processTable($data);
-        $groupByIndices = self::getFieldIndices($tableData['header'], $groupByFields);
+        // Get indices for groupBy fields
+        $groupByIndices = self::getFieldIndices($headers, $groupByFields);
 
         // Build groups
-        $groups = self::buildGroups($tableData['rows'], $groupByIndices);
+        $groups = self::buildGroups($data, $groupByIndices);
 
         // Build output header
-        $header = array_merge($groupByFields, array_keys($aggregations));
-        yield $header;
+        $outputHeaders = array_merge($groupByFields, array_keys($aggregations));
+
+        // Build output data
+        $outputData = [];
 
         // Apply aggregations to each group
         foreach ($groups as $keyValues => $rows) {
@@ -48,59 +51,66 @@ class Aggregator
             $result = $groupKeyValues;
 
             foreach ($aggregations as $field => $aggregation) {
-                $result[] = self::applyAggregation($aggregation, $rows, $tableData['header']);
+                $result[] = self::applyAggregation($aggregation, $rows, $headers);
             }
 
-            yield $result;
+            $outputData[] = $result;
         }
+
+        return [$outputHeaders, $outputData];
     }
 
     /**
      * Count rows, optionally grouped by field(s).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string|array<string>|null $groupBy Field(s) to group by (null for total count)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function count(iterable $data, string|array|null $groupBy = null): Generator
-    {
+    public static function count(
+        array $headers,
+        array $data,
+        string|array|null $groupBy = null
+    ): array {
         if ($groupBy === null) {
             // Total count
-            $tableData = self::processTable($data);
-            yield ['count'];
-            yield [count($tableData['rows'])];
-            return;
+            return [['count'], [[count($data)]]];
         }
 
         // Grouped count
-        yield from self::aggregate($data, $groupBy, ['count' => 'count']);
+        $groupByFields = is_array($groupBy) ? $groupBy : [$groupBy];
+        return self::aggregate($headers, $data, $groupByFields, ['count' => 'count']);
     }
 
     /**
      * Sum values of a field, optionally grouped.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string $field Field to sum
      * @param string|array<string>|null $groupBy Field(s) to group by
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function sum(iterable $data, string $field, string|array|null $groupBy = null): Generator
-    {
+    public static function sum(
+        array $headers,
+        array $data,
+        string $field,
+        string|array|null $groupBy = null
+    ): array {
         if ($groupBy === null) {
-            $tableData = self::processTable($data);
-            $fieldIndex = self::getFieldIndex($tableData['header'], $field);
+            $fieldIndex = self::getFieldIndex($headers, $field);
             $total = 0;
 
-            foreach ($tableData['rows'] as $row) {
+            foreach ($data as $row) {
                 $total += $row[$fieldIndex] ?? 0;
             }
 
-            yield ['sum'];
-            yield [$total];
-            return;
+            return [['sum'], [[$total]]];
         }
 
-        yield from self::aggregate($data, $groupBy, [
+        $groupByFields = is_array($groupBy) ? $groupBy : [$groupBy];
+        return self::aggregate($headers, $data, $groupByFields, [
             'sum' => function ($rows, $header) use ($field) {
                 $fieldIndex = array_search($field, $header, true);
                 if ($fieldIndex === false) {
@@ -115,34 +125,7 @@ class Aggregator
         ]);
     }
 
-    /**
-     * Process table into header and rows.
-     *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return array{header: array<int|string, mixed>, rows: array<int, array<int|string, mixed>>}
-     */
-    private static function processTable(iterable $data): array
-    {
-        $header = null;
-        $rows = [];
 
-        foreach ($data as $index => $row) {
-            if ($index === 0) {
-                $header = $row;
-                continue;
-            }
-            $rows[] = $row;
-        }
-
-        if ($header === null) {
-            throw new InvalidArgumentException('Table must have a header row');
-        }
-
-        return [
-            'header' => $header,
-            'rows' => $rows,
-        ];
-    }
 
     /**
      * Get field indices from header.

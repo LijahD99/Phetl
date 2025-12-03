@@ -15,128 +15,140 @@ class Join
     /**
      * Inner join - returns rows that have matching values in both tables.
      *
-     * @param iterable<int, array<int|string, mixed>> $left Left table
-     * @param iterable<int, array<int|string, mixed>> $right Right table
+     * @param array<string> $leftHeaders
+     * @param array<int, array<int|string, mixed>> $leftData
+     * @param array<string> $rightHeaders
+     * @param array<int, array<int|string, mixed>> $rightData
      * @param string|array<string> $leftKey Left join key(s)
      * @param string|array<string>|null $rightKey Right join key(s), defaults to leftKey
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function inner(
-        iterable $left,
-        iterable $right,
+        array $leftHeaders,
+        array $leftData,
+        array $rightHeaders,
+        array $rightData,
         string|array $leftKey,
         string|array|null $rightKey = null
-    ): Generator {
+    ): array {
         $rightKey = $rightKey ?? $leftKey;
         $leftKeys = is_array($leftKey) ? $leftKey : [$leftKey];
         $rightKeys = is_array($rightKey) ? $rightKey : [$rightKey];
 
-        // Process left table
-        $leftData = self::processTable($left);
-        $leftKeyIndices = self::getFieldIndices($leftData['header'], $leftKeys, 'left');
+        $leftKeyIndices = self::getFieldIndices($leftHeaders, $leftKeys, 'left');
 
         // Build lookup from right table
-        $rightLookup = self::buildRightLookup($right, $rightKeys);
+        $rightLookup = self::buildRightLookup($rightHeaders, $rightData, $rightKeys);
 
-        // Yield merged header
-        $mergedHeader = self::mergeHeaders($leftData['header'], $rightLookup['header'], $rightKeys);
-        yield $mergedHeader;
+        // Merged header
+        $mergedHeader = self::mergeHeaders($leftHeaders, $rightHeaders, $rightKeys);
 
         // Join rows
-        foreach ($leftData['rows'] as $leftRow) {
+        $resultData = [];
+        foreach ($leftData as $leftRow) {
             $keyValue = self::extractKeyValue($leftRow, $leftKeyIndices);
             $key = serialize($keyValue);
 
             if (isset($rightLookup['data'][$key])) {
                 foreach ($rightLookup['data'][$key] as $rightRow) {
-                    yield self::mergeRows($leftRow, $rightRow, $rightLookup['keyIndices']);
+                    $resultData[] = self::mergeRows($leftRow, $rightRow, $rightLookup['keyIndices']);
                 }
             }
         }
+
+        return [$mergedHeader, $resultData];
     }
 
     /**
      * Left join - returns all rows from left table, with matched rows from right table.
      *
-     * @param iterable<int, array<int|string, mixed>> $left Left table
-     * @param iterable<int, array<int|string, mixed>> $right Right table
+     * @param array<string> $leftHeaders
+     * @param array<int, array<int|string, mixed>> $leftData
+     * @param array<string> $rightHeaders
+     * @param array<int, array<int|string, mixed>> $rightData
      * @param string|array<string> $leftKey Left join key(s)
      * @param string|array<string>|null $rightKey Right join key(s), defaults to leftKey
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function left(
-        iterable $left,
-        iterable $right,
+        array $leftHeaders,
+        array $leftData,
+        array $rightHeaders,
+        array $rightData,
         string|array $leftKey,
         string|array|null $rightKey = null
-    ): Generator {
+    ): array {
         $rightKey = $rightKey ?? $leftKey;
         $leftKeys = is_array($leftKey) ? $leftKey : [$leftKey];
         $rightKeys = is_array($rightKey) ? $rightKey : [$rightKey];
 
-        // Process left table
-        $leftData = self::processTable($left);
-        $leftKeyIndices = self::getFieldIndices($leftData['header'], $leftKeys, 'left');
+        $leftKeyIndices = self::getFieldIndices($leftHeaders, $leftKeys, 'left');
 
         // Build lookup from right table
-        $rightLookup = self::buildRightLookup($right, $rightKeys);
+        $rightLookup = self::buildRightLookup($rightHeaders, $rightData, $rightKeys);
 
-        // Yield merged header
-        $mergedHeader = self::mergeHeaders($leftData['header'], $rightLookup['header'], $rightKeys);
-        yield $mergedHeader;
+        // Merged header
+        $mergedHeader = self::mergeHeaders($leftHeaders, $rightHeaders, $rightKeys);
 
         // Calculate null row for unmatched records
-        $nullRightRow = array_fill(0, count($rightLookup['header']) - count($rightKeys), null);
+        $nullRightRow = array_fill(0, count($rightHeaders) - count($rightKeys), null);
 
         // Join rows
-        foreach ($leftData['rows'] as $leftRow) {
+        $resultData = [];
+        foreach ($leftData as $leftRow) {
             $keyValue = self::extractKeyValue($leftRow, $leftKeyIndices);
             $key = serialize($keyValue);
 
             if (isset($rightLookup['data'][$key])) {
                 foreach ($rightLookup['data'][$key] as $rightRow) {
-                    yield self::mergeRows($leftRow, $rightRow, $rightLookup['keyIndices']);
+                    $resultData[] = self::mergeRows($leftRow, $rightRow, $rightLookup['keyIndices']);
                 }
             } else {
                 // No match - yield left row with nulls
-                yield array_merge($leftRow, $nullRightRow);
+                $resultData[] = array_merge($leftRow, $nullRightRow);
             }
         }
+
+        return [$mergedHeader, $resultData];
     }
 
     /**
      * Right join - returns all rows from right table, with matched rows from left table.
      *
-     * @param iterable<int, array<int|string, mixed>> $left Left table
-     * @param iterable<int, array<int|string, mixed>> $right Right table
+     * @param array<string> $leftHeaders
+     * @param array<int, array<int|string, mixed>> $leftData
+     * @param array<string> $rightHeaders
+     * @param array<int, array<int|string, mixed>> $rightData
      * @param string|array<string> $leftKey Left join key(s)
      * @param string|array<string>|null $rightKey Right join key(s), defaults to leftKey
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function right(
-        iterable $left,
-        iterable $right,
+        array $leftHeaders,
+        array $leftData,
+        array $rightHeaders,
+        array $rightData,
         string|array $leftKey,
         string|array|null $rightKey = null
-    ): Generator {
+    ): array {
         // Right join is left join with tables swapped
-        return self::left($right, $left, $rightKey ?? $leftKey, $leftKey);
+        return self::left($rightHeaders, $rightData, $leftHeaders, $leftData, $rightKey ?? $leftKey, $leftKey);
     }
 
     /**
      * Build lookup table from right side of join.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param array<string> $keys
-     * @return array{header: array<int|string, mixed>, data: array<string, array<int, array<int|string, mixed>>>, keyIndices: array<int|string>}
+     * @return array{header: array<string>, data: array<string, array<int, array<int|string, mixed>>>, keyIndices: array<int|string>}
      */
-    private static function buildRightLookup(iterable $data, array $keys): array
+    private static function buildRightLookup(array $headers, array $data, array $keys): array
     {
-        $tableData = self::processTable($data);
-        $keyIndices = self::getFieldIndices($tableData['header'], $keys, 'right');
+        $keyIndices = self::getFieldIndices($headers, $keys, 'right');
         $lookup = [];
 
-        foreach ($tableData['rows'] as $row) {
+        foreach ($data as $row) {
             $keyValue = self::extractKeyValue($row, $keyIndices);
             $key = serialize($keyValue);
 
@@ -147,38 +159,9 @@ class Join
         }
 
         return [
-            'header' => $tableData['header'],
+            'header' => $headers,
             'data' => $lookup,
             'keyIndices' => $keyIndices,
-        ];
-    }
-
-    /**
-     * Process table into header and rows.
-     *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return array{header: array<int|string, mixed>, rows: array<int, array<int|string, mixed>>}
-     */
-    private static function processTable(iterable $data): array
-    {
-        $header = null;
-        $rows = [];
-
-        foreach ($data as $index => $row) {
-            if ($index === 0) {
-                $header = $row;
-                continue;
-            }
-            $rows[] = $row;
-        }
-
-        if ($header === null) {
-            throw new InvalidArgumentException('Table must have a header row');
-        }
-
-        return [
-            'header' => $header,
-            'rows' => $rows,
         ];
     }
 

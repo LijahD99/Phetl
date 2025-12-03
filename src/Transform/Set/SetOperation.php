@@ -16,142 +16,128 @@ class SetOperation
      * Concatenate tables vertically (append rows).
      * Headers must match exactly.
      *
-     * @param iterable<int, array<int|string, mixed>> ...$tables
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array{0: array<string>, 1: array<int, array<int|string, mixed>>} ...$tables Tables as [headers, data] tuples
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function concat(iterable ...$tables): Generator
+    public static function concat(array ...$tables): array
     {
         if (count($tables) === 0) {
-            return;
+            return [[], []];
         }
 
-        $headerEmitted = false;
-        /** @var array<int|string, mixed>|null $expectedHeader */
-        $expectedHeader = null;
+        $expectedHeaders = null;
+        $allData = [];
 
         foreach ($tables as $tableIndex => $table) {
-            $isFirstRow = true;
+            [$headers, $data] = $table;
 
-            foreach ($table as $row) {
-                if ($isFirstRow) {
-                    // Process header
-                    if (!$headerEmitted) {
-                        $expectedHeader = $row;
-                        yield $row;
-                        $headerEmitted = true;
-                    } else {
-                        // Validate header matches
-                        if ($row !== $expectedHeader) {
-                            throw new InvalidArgumentException(
-                                "Table " . ((int)$tableIndex + 1) . " has different header structure"
-                            );
-                        }
-                    }
-                    $isFirstRow = false;
-                    continue;
+            if ($expectedHeaders === null) {
+                $expectedHeaders = $headers;
+            } else {
+                // Validate headers match
+                if ($headers !== $expectedHeaders) {
+                    throw new InvalidArgumentException(
+                        "Table " . ((int)$tableIndex + 1) . " has different header structure"
+                    );
                 }
+            }
 
-                // Yield data row
-                yield $row;
+            // Append data rows
+            foreach ($data as $row) {
+                $allData[] = $row;
             }
         }
+
+        return [$expectedHeaders ?? [], $allData];
     }
 
     /**
      * Union tables (concat + remove duplicates).
      * Headers must match exactly.
      *
-     * @param iterable<int, array<int|string, mixed>> ...$tables
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array{0: array<string>, 1: array<int, array<int|string, mixed>>} ...$tables Tables as [headers, data] tuples
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function union(iterable ...$tables): Generator
+    public static function union(array ...$tables): array
     {
+        // First concatenate all tables
+        [$headers, $data] = self::concat(...$tables);
+
+        // Remove duplicates
         $seen = [];
-        $header = null;
+        $uniqueData = [];
 
-        foreach (self::concat(...$tables) as $index => $row) {
-            if ($index === 0) {
-                $header = $row;
-                yield $row;
-                continue;
-            }
-
+        foreach ($data as $row) {
             // Serialize row for uniqueness check
             $key = serialize($row);
             if (!isset($seen[$key])) {
                 $seen[$key] = true;
-                yield $row;
+                $uniqueData[] = $row;
             }
         }
+
+        return [$headers, $uniqueData];
     }
 
     /**
      * Merge tables with different headers (combines all columns).
      * Missing values are filled with null.
      *
-     * @param iterable<int, array<int|string, mixed>> ...$tables
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array{0: array<string>, 1: array<int, array<int|string, mixed>>} ...$tables Tables as [headers, data] tuples
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function merge(iterable ...$tables): Generator
+    public static function merge(array ...$tables): array
     {
         if (count($tables) === 0) {
-            return;
+            return [[], []];
         }
 
-        // Collect all headers and data from all tables
+        // Collect all field names across all tables
         /** @var array<string, int> $allFieldIndices */
         $allFieldIndices = [];
-        /** @var array<int, array{header: array<int|string, mixed>, rows: array<int, array<int|string, mixed>>}> $tableData */
+        /** @var array<int, array{header: array<string>, rows: array<int, array<int|string, mixed>>}> $tableData */
         $tableData = [];
 
         foreach ($tables as $table) {
-            $header = null;
-            $rows = [];
+            [$headers, $data] = $table;
 
-            foreach ($table as $index => $row) {
-                if ($index === 0) {
-                    $header = $row;
-                    // Track all field names
-                    foreach ($row as $field) {
-                        if (!isset($allFieldIndices[$field])) {
-                            $allFieldIndices[$field] = count($allFieldIndices);
-                        }
-                    }
-                } else {
-                    $rows[] = $row;
+            // Track all field names
+            foreach ($headers as $field) {
+                if (!isset($allFieldIndices[$field])) {
+                    $allFieldIndices[$field] = count($allFieldIndices);
                 }
             }
 
-            if ($header !== null) {
-                $tableData[] = ['header' => $header, 'rows' => $rows];
-            }
+            $tableData[] = ['header' => $headers, 'rows' => $data];
         }
 
         // Create merged header
-        $mergedHeader = array_keys($allFieldIndices);
-        yield $mergedHeader;
+        $mergedHeaders = array_keys($allFieldIndices);
 
         // Merge rows from all tables
-        foreach ($tableData as $data) {
-            $header = $data['header'];
-            $rows = $data['rows'];
+        $allData = [];
+        foreach ($tableData as $tblData) {
+            $headers = $tblData['header'];
+            $rows = $tblData['rows'];
 
             // Create mapping from source header to merged header
             /** @var array<int, int> $indexMapping */
             $indexMapping = [];
-            foreach ($header as $sourceIndex => $fieldName) {
+            foreach ($headers as $sourceIndex => $fieldName) {
                 $indexMapping[$sourceIndex] = $allFieldIndices[$fieldName];
             }
 
-            // Yield rows with proper alignment
+            // Add rows with proper alignment
             foreach ($rows as $row) {
-                $mergedRow = array_fill(0, count($mergedHeader), null);
+                $mergedRow = array_fill(0, count($mergedHeaders), null);
                 foreach ($row as $sourceIndex => $value) {
                     $targetIndex = $indexMapping[$sourceIndex];
                     $mergedRow[$targetIndex] = $value;
                 }
-                yield $mergedRow;
+                $allData[] = $mergedRow;
             }
         }
+
+        return [$mergedHeaders, $allData];
     }
 }

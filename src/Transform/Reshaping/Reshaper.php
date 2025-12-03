@@ -16,30 +16,31 @@ class Reshaper
      * Unpivot (melt) table from wide to long format.
      * Converts columns into rows.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string|array<string> $idFields Field(s) to keep as identifiers
      * @param string|array<string>|null $valueFields Field(s) to unpivot (null = all except id fields)
      * @param string $variableName Name for the variable column (default: 'variable')
      * @param string $valueName Name for the value column (default: 'value')
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function unpivot(
-        iterable $data,
+        array $headers,
+        array $data,
         string|array $idFields,
         string|array|null $valueFields = null,
         string $variableName = 'variable',
         string $valueName = 'value'
-    ): Generator {
+    ): array {
         $idFields = is_array($idFields) ? $idFields : [$idFields];
 
-        $tableData = self::processTable($data);
-        $idIndices = self::getFieldIndices($tableData['header'], $idFields);
+        $idIndices = self::getFieldIndices($headers, $idFields);
 
         // Determine value fields
         if ($valueFields === null) {
             // All fields except id fields
             $valueIndices = [];
-            foreach ($tableData['header'] as $index => $field) {
+            foreach ($headers as $index => $field) {
                 if (!in_array($index, $idIndices, true)) {
                     $valueIndices[$index] = $field;
                 }
@@ -48,7 +49,7 @@ class Reshaper
             $valueFields = is_array($valueFields) ? $valueFields : [$valueFields];
             $valueIndices = [];
             foreach ($valueFields as $field) {
-                $index = array_search($field, $tableData['header'], true);
+                $index = array_search($field, $headers, true);
                 if ($index === false) {
                     throw new InvalidArgumentException("Field '$field' not found in header");
                 }
@@ -56,11 +57,12 @@ class Reshaper
             }
         }
 
-        // Yield new header
-        yield array_merge($idFields, [$variableName, $valueName]);
+        // Build new header
+        $outputHeaders = array_merge($idFields, [$variableName, $valueName]);
 
         // Unpivot rows
-        foreach ($tableData['rows'] as $row) {
+        $outputData = [];
+        foreach ($data as $row) {
             // Extract id values
             $idValues = [];
             foreach ($idIndices as $idIndex) {
@@ -69,61 +71,66 @@ class Reshaper
 
             // Create one row per value field
             foreach ($valueIndices as $valueIndex => $fieldName) {
-                yield array_merge($idValues, [$fieldName, $row[$valueIndex] ?? null]);
+                $outputData[] = array_merge($idValues, [$fieldName, $row[$valueIndex] ?? null]);
             }
         }
+
+        return [$outputHeaders, $outputData];
     }
 
     /**
      * Alias for unpivot - petl compatibility.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string|array<string> $idFields Field(s) to keep as identifiers
      * @param string|array<string>|null $valueFields Field(s) to melt (null = all except id fields)
      * @param string $variableName Name for the variable column (default: 'variable')
      * @param string $valueName Name for the value column (default: 'value')
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function melt(
-        iterable $data,
+        array $headers,
+        array $data,
         string|array $idFields,
         string|array|null $valueFields = null,
         string $variableName = 'variable',
         string $valueName = 'value'
-    ): Generator {
-        yield from self::unpivot($data, $idFields, $valueFields, $variableName, $valueName);
+    ): array {
+        return self::unpivot($headers, $data, $idFields, $valueFields, $variableName, $valueName);
     }
 
     /**
      * Pivot table from long to wide format.
      * Converts rows into columns.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
      * @param string|array<string> $indexFields Field(s) to use as row identifiers
      * @param string $columnField Field to pivot into columns
      * @param string $valueField Field to use for values
      * @param callable|string|null $aggregation Aggregation function for duplicate combinations (default: first value)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function pivot(
-        iterable $data,
+        array $headers,
+        array $data,
         string|array $indexFields,
         string $columnField,
         string $valueField,
         callable|string|null $aggregation = null
-    ): Generator {
+    ): array {
         $indexFields = is_array($indexFields) ? $indexFields : [$indexFields];
 
-        $tableData = self::processTable($data);
-        $indexIndices = self::getFieldIndices($tableData['header'], $indexFields);
-        $columnIndex = self::getFieldIndex($tableData['header'], $columnField);
-        $valueIndex = self::getFieldIndex($tableData['header'], $valueField);
+        $indexIndices = self::getFieldIndices($headers, $indexFields);
+        $columnIndex = self::getFieldIndex($headers, $columnField);
+        $valueIndex = self::getFieldIndex($headers, $valueField);
 
         // Collect unique column values and build pivot structure
         $columnValues = [];
         $pivotData = [];
 
-        foreach ($tableData['rows'] as $row) {
+        foreach ($data as $row) {
             // Extract index key
             $indexKey = serialize(array_map(fn($i) => $row[$i] ?? null, $indexIndices));
 
@@ -162,81 +169,61 @@ class Reshaper
         // Sort column values for consistent output
         sort($columnValues);
 
-        // Yield header
-        yield array_merge($indexFields, $columnValues);
+        // Build output header
+        $outputHeaders = array_merge($indexFields, $columnValues);
 
-        // Yield pivoted rows
-        foreach ($pivotData as $data) {
-            $row = $data['index_values'];
+        // Build pivoted rows
+        $outputData = [];
+        foreach ($pivotData as $rowData) {
+            $row = $rowData['index_values'];
 
             // Add values for each column (null if missing)
             foreach ($columnValues as $colValue) {
-                $row[] = $data['columns'][$colValue] ?? null;
+                $row[] = $rowData['columns'][$colValue] ?? null;
             }
 
-            yield $row;
+            $outputData[] = $row;
         }
+
+        return [$outputHeaders, $outputData];
     }
 
     /**
      * Transpose table - swap rows and columns.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array<string> $headers Column headers
+     * @param array<int, array<int|string, mixed>> $data Table data (without header row)
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function transpose(iterable $data): Generator
+    public static function transpose(array $headers, array $data): array
     {
-        $rows = [];
+        // Combine headers and data for transposition
+        $allRows = array_merge([$headers], $data);
 
-        foreach ($data as $row) {
-            $rows[] = $row;
-        }
-
-        if (empty($rows)) {
-            return;
+        if (empty($allRows)) {
+            return [[], []];
         }
 
         // Determine max columns
-        $maxCols = max(array_map('count', $rows));
+        $maxCols = max(array_map('count', $allRows));
 
-        // Transpose
+        // Transpose all rows
+        $transposed = [];
         for ($col = 0; $col < $maxCols; $col++) {
             $newRow = [];
-            foreach ($rows as $row) {
+            foreach ($allRows as $row) {
                 $newRow[] = $row[$col] ?? null;
             }
-            yield $newRow;
+            $transposed[] = $newRow;
         }
+
+        // First transposed row becomes headers
+        $outputHeaders = array_shift($transposed);
+
+        return [$outputHeaders, $transposed];
     }
 
-    /**
-     * Process table into header and rows.
-     *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return array{header: array<int|string, mixed>, rows: array<int, array<int|string, mixed>>}
-     */
-    private static function processTable(iterable $data): array
-    {
-        $header = null;
-        $rows = [];
 
-        foreach ($data as $index => $row) {
-            if ($index === 0) {
-                $header = $row;
-                continue;
-            }
-            $rows[] = $row;
-        }
-
-        if ($header === null) {
-            throw new InvalidArgumentException('Table must have a header row');
-        }
-
-        return [
-            'header' => $header,
-            'rows' => $rows,
-        ];
-    }
 
     /**
      * Get field indices from header.

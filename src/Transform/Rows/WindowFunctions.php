@@ -18,35 +18,36 @@ final class WindowFunctions
     /**
      * Access value from previous row (look back).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $field Field to get previous value from
      * @param string $targetField Field to store the lagged value
      * @param int $offset Number of rows to look back (default: 1)
      * @param mixed $default Default value when no previous row exists
      * @param string|null $partitionBy Field to partition by (resets lag within partitions)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function lag(
-        iterable $data,
+        array $headers,
+        array $data,
         string $field,
         string $targetField,
         int $offset = 1,
         mixed $default = null,
         ?string $partitionBy = null
-    ): Generator {
-        $tableData = self::processTable($data);
-        $fieldIndex = self::getFieldIndex($tableData['header'], $field);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
-        $partitionIndex = $partitionBy ? self::getFieldIndex($tableData['header'], $partitionBy) : null;
+    ): array {
+        $newHeaders = $headers;
+        $fieldIndex = self::getFieldIndex($headers, $field);
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
+        $partitionIndex = $partitionBy ? self::getFieldIndex($headers, $partitionBy) : null;
 
-        // Yield updated header
-        yield $tableData['header'];
+        $rows = $data;
 
         // Group by partition if needed, preserving original order
         if ($partitionIndex !== null) {
             $partitions = [];
             $rowIndex = 0;
-            foreach ($tableData['rows'] as $row) {
+            foreach ($rows as $row) {
                 $partition = serialize($row[$partitionIndex] ?? null);
                 if (!isset($partitions[$partition])) {
                     $partitions[$partition] = [];
@@ -60,6 +61,10 @@ final class WindowFunctions
                 $buffer = [];
                 foreach ($partitionRows as $item) {
                     $row = $item['row'];
+                    // Extend row if target field is new
+                    if ($targetIndex >= count($row)) {
+                        $row[] = null;
+                    }
                     // Get lagged value
                     $row[$targetIndex] = count($buffer) >= $offset ? $buffer[count($buffer) - $offset] : $default;
 
@@ -71,58 +76,64 @@ final class WindowFunctions
                 }
             }
 
-            // Yield rows in original order
+            // Return rows in original order
             ksort($results);
-            foreach ($results as $row) {
-                yield $row;
-            }
+            return [$newHeaders, array_values($results)];
         } else {
             // No partitioning
             $buffer = [];
-            foreach ($tableData['rows'] as $row) {
+            $newData = [];
+            foreach ($rows as $row) {
+                // Extend row if target field is new
+                if ($targetIndex >= count($row)) {
+                    $row[] = null;
+                }
                 // Get lagged value
                 $row[$targetIndex] = count($buffer) >= $offset ? $buffer[count($buffer) - $offset] : $default;
 
                 // Add current value to buffer
                 $buffer[] = $row[$fieldIndex] ?? null;
 
-                yield $row;
+                $newData[] = $row;
             }
+
+            return [$newHeaders, $newData];
         }
     }
 
     /**
      * Access value from next row (look ahead).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $field Field to get next value from
      * @param string $targetField Field to store the lead value
      * @param int $offset Number of rows to look ahead (default: 1)
      * @param mixed $default Default value when no next row exists
      * @param string|null $partitionBy Field to partition by (resets lead within partitions)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function lead(
-        iterable $data,
+        array $headers,
+        array $data,
         string $field,
         string $targetField,
         int $offset = 1,
         mixed $default = null,
         ?string $partitionBy = null
-    ): Generator {
-        $tableData = self::processTable($data);
-        $fieldIndex = self::getFieldIndex($tableData['header'], $field);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
-        $partitionIndex = $partitionBy ? self::getFieldIndex($tableData['header'], $partitionBy) : null;
+    ): array {
+        $newHeaders = $headers;
+        $fieldIndex = self::getFieldIndex($headers, $field);
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
+        $partitionIndex = $partitionBy ? self::getFieldIndex($headers, $partitionBy) : null;
 
-        // Yield updated header
-        yield $tableData['header'];
+        $rows = $data;
 
         // Group rows by partition if partitioning, preserving original order
         if ($partitionIndex !== null) {
             $partitions = [];
             $rowIndex = 0;
-            foreach ($tableData['rows'] as $row) {
+            foreach ($rows as $row) {
                 $partition = serialize($row[$partitionIndex] ?? null);
                 $partitions[$partition][] = ['row' => $row, 'index' => $rowIndex++];
             }
@@ -143,17 +154,13 @@ final class WindowFunctions
                 }
             }
 
-            // Yield rows in original order
+            // Return rows in original order
             ksort($results);
-            foreach ($results as $row) {
-                yield $row;
-            }
+            return [$newHeaders, array_values($results)];
         } else {
             // Process all rows
-            $processedRows = self::applyLead($tableData['rows'], $fieldIndex, $targetIndex, $offset, $default);
-            foreach ($processedRows as $row) {
-                yield $row;
-            }
+            $processedRows = self::applyLead($rows, $fieldIndex, $targetIndex, $offset, $default);
+            return [$newHeaders, $processedRows];
         }
     }
 
@@ -178,6 +185,11 @@ final class WindowFunctions
         $result = [];
 
         for ($i = 0; $i < $count; $i++) {
+            // Extend row if target field is new
+            if ($targetIndex >= count($rows[$i])) {
+                $rows[$i][] = null;
+            }
+
             $leadIndex = $i + $offset;
             $rows[$i][$targetIndex] = $leadIndex < $count
                 ? ($rows[$leadIndex][$fieldIndex] ?? null)
@@ -192,35 +204,34 @@ final class WindowFunctions
     /**
      * Assign sequential row numbers within optional partitions.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $targetField Field to store row numbers
      * @param string|null $partitionBy Field to partition by (resets numbering)
      * @param string|null $orderBy Field to order by before numbering
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function rowNumber(
-        iterable $data,
+        array $headers,
+        array $data,
         string $targetField,
         ?string $partitionBy = null,
         ?string $orderBy = null
-    ): Generator {
-        $tableData = self::processTable($data);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
+    ): array {
+        $newHeaders = $headers;
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
 
-        // Yield updated header
-        yield $tableData['header'];
-
-        $rows = $tableData['rows'];
+        $rows = $data;
 
         // Apply ordering if specified
         if ($orderBy !== null) {
-            $orderIndex = self::getFieldIndex($tableData['header'], $orderBy);
+            $orderIndex = self::getFieldIndex($headers, $orderBy);
             usort($rows, fn($a, $b) => ($a[$orderIndex] ?? null) <=> ($b[$orderIndex] ?? null));
         }
 
         // Apply partitioning if specified
         if ($partitionBy !== null) {
-            $partitionIndex = self::getFieldIndex($tableData['header'], $partitionBy);
+            $partitionIndex = self::getFieldIndex($headers, $partitionBy);
             $partitions = [];
             $rowIndex = 0;
 
@@ -235,54 +246,61 @@ final class WindowFunctions
                 $rowNum = 1;
                 foreach ($partitionRows as $item) {
                     $row = $item['row'];
+                    // Extend row if target field is new
+                    if ($targetIndex >= count($row)) {
+                        $row[] = null;
+                    }
                     $row[$targetIndex] = $rowNum++;
                     $results[$item['index']] = $row;
                 }
             }
 
-            // Yield rows in original order
+            // Return rows in original order
             ksort($results);
-            foreach ($results as $row) {
-                yield $row;
-            }
+            return [$newHeaders, array_values($results)];
         } else {
             $rowNum = 1;
+            $newData = [];
             foreach ($rows as $row) {
+                // Extend row if target field is new
+                if ($targetIndex >= count($row)) {
+                    $row[] = null;
+                }
                 $row[$targetIndex] = $rowNum++;
-                yield $row;
+                $newData[] = $row;
             }
+            return [$newHeaders, $newData];
         }
     }
 
     /**
      * Assign rank with gaps for ties (1, 1, 3, 4, 4, 6).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $orderBy Field to rank by
      * @param string $targetField Field to store ranks
      * @param string|null $partitionBy Field to partition by (separate rankings)
      * @param bool $descending Rank in descending order (highest value = rank 1)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function rank(
-        iterable $data,
+        array $headers,
+        array $data,
         string $orderBy,
         string $targetField,
         ?string $partitionBy = null,
         bool $descending = false
-    ): Generator {
-        $tableData = self::processTable($data);
-        $orderIndex = self::getFieldIndex($tableData['header'], $orderBy);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
+    ): array {
+        $newHeaders = $headers;
+        $orderIndex = self::getFieldIndex($headers, $orderBy);
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
 
-        // Yield updated header
-        yield $tableData['header'];
-
-        $rows = $tableData['rows'];
+        $rows = $data;
 
         // Apply partitioning if specified
         if ($partitionBy !== null) {
-            $partitionIndex = self::getFieldIndex($tableData['header'], $partitionBy);
+            $partitionIndex = self::getFieldIndex($headers, $partitionBy);
             $partitions = [];
 
             foreach ($rows as $row) {
@@ -290,17 +308,18 @@ final class WindowFunctions
                 $partitions[$partition][] = $row;
             }
 
+            $newData = [];
             foreach ($partitions as $partitionRows) {
                 $processedRows = self::applyRank($partitionRows, $orderIndex, $targetIndex, $descending);
                 foreach ($processedRows as $row) {
-                    yield $row;
+                    $newData[] = $row;
                 }
             }
+
+            return [$newHeaders, $newData];
         } else {
             $processedRows = self::applyRank($rows, $orderIndex, $targetIndex, $descending);
-            foreach ($processedRows as $row) {
-                yield $row;
-            }
+            return [$newHeaders, $processedRows];
         }
     }
 
@@ -338,6 +357,11 @@ final class WindowFunctions
                 $rank = $count;
             }
 
+            // Extend row if target field is new
+            if ($targetIndex >= count($row)) {
+                $row[] = null;
+            }
+
             $row[$targetIndex] = $rank;
             $prevValue = $currentValue;
 
@@ -350,32 +374,31 @@ final class WindowFunctions
     /**
      * Assign rank without gaps for ties (1, 1, 2, 3, 3, 4).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $orderBy Field to rank by
      * @param string $targetField Field to store ranks
      * @param string|null $partitionBy Field to partition by (separate rankings)
      * @param bool $descending Rank in descending order (highest value = rank 1)
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function denseRank(
-        iterable $data,
+        array $headers,
+        array $data,
         string $orderBy,
         string $targetField,
         ?string $partitionBy = null,
         bool $descending = false
-    ): Generator {
-        $tableData = self::processTable($data);
-        $orderIndex = self::getFieldIndex($tableData['header'], $orderBy);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
+    ): array {
+        $newHeaders = $headers;
+        $orderIndex = self::getFieldIndex($headers, $orderBy);
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
 
-        // Yield updated header
-        yield $tableData['header'];
-
-        $rows = $tableData['rows'];
+        $rows = $data;
 
         // Apply partitioning if specified
         if ($partitionBy !== null) {
-            $partitionIndex = self::getFieldIndex($tableData['header'], $partitionBy);
+            $partitionIndex = self::getFieldIndex($headers, $partitionBy);
             $partitions = [];
 
             foreach ($rows as $row) {
@@ -383,17 +406,18 @@ final class WindowFunctions
                 $partitions[$partition][] = $row;
             }
 
+            $newData = [];
             foreach ($partitions as $partitionRows) {
                 $processedRows = self::applyDenseRank($partitionRows, $orderIndex, $targetIndex, $descending);
                 foreach ($processedRows as $row) {
-                    yield $row;
+                    $newData[] = $row;
                 }
             }
+
+            return [$newHeaders, $newData];
         } else {
             $processedRows = self::applyDenseRank($rows, $orderIndex, $targetIndex, $descending);
-            foreach ($processedRows as $row) {
-                yield $row;
-            }
+            return [$newHeaders, $processedRows];
         }
     }
 
@@ -429,6 +453,11 @@ final class WindowFunctions
                 $rank++;
             }
 
+            // Extend row if target field is new
+            if ($targetIndex >= count($row)) {
+                $row[] = null;
+            }
+
             $row[$targetIndex] = $rank;
             $prevValue = $currentValue;
 
@@ -442,32 +471,31 @@ final class WindowFunctions
      * Calculate percentage rank (0.0 to 1.0).
      * Formula: (rank - 1) / (total rows - 1)
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $orderBy Field to rank by
      * @param string $targetField Field to store percentage ranks
      * @param string|null $partitionBy Field to partition by (separate rankings)
      * @param bool $descending Rank in descending order
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function percentRank(
-        iterable $data,
+        array $headers,
+        array $data,
         string $orderBy,
         string $targetField,
         ?string $partitionBy = null,
         bool $descending = false
-    ): Generator {
-        $tableData = self::processTable($data);
-        $orderIndex = self::getFieldIndex($tableData['header'], $orderBy);
-        $targetIndex = self::ensureTargetField($tableData['header'], $targetField);
+    ): array {
+        $newHeaders = $headers;
+        $orderIndex = self::getFieldIndex($headers, $orderBy);
+        $targetIndex = self::ensureTargetField($newHeaders, $targetField);
 
-        // Yield updated header
-        yield $tableData['header'];
-
-        $rows = $tableData['rows'];
+        $rows = $data;
 
         // Apply partitioning if specified
         if ($partitionBy !== null) {
-            $partitionIndex = self::getFieldIndex($tableData['header'], $partitionBy);
+            $partitionIndex = self::getFieldIndex($headers, $partitionBy);
             $partitions = [];
 
             foreach ($rows as $row) {
@@ -475,17 +503,18 @@ final class WindowFunctions
                 $partitions[$partition][] = $row;
             }
 
+            $newData = [];
             foreach ($partitions as $partitionRows) {
                 $processedRows = self::applyPercentRank($partitionRows, $orderIndex, $targetIndex, $descending);
                 foreach ($processedRows as $row) {
-                    yield $row;
+                    $newData[] = $row;
                 }
             }
+
+            return [$newHeaders, $newData];
         } else {
             $processedRows = self::applyPercentRank($rows, $orderIndex, $targetIndex, $descending);
-            foreach ($processedRows as $row) {
-                yield $row;
-            }
+            return [$newHeaders, $processedRows];
         }
     }
 
@@ -508,7 +537,11 @@ final class WindowFunctions
 
         // Handle edge case of single row
         if ($count === 1) {
-            $rows[0][$targetIndex] = 0.0;
+            if ($targetIndex >= count($rows[0])) {
+                $rows[0][] = 0.0;
+            } else {
+                $rows[0][$targetIndex] = 0.0;
+            }
             return [$rows[0]];
         }
 
@@ -531,6 +564,11 @@ final class WindowFunctions
                 $rank = $rowNum;
             }
 
+            // Extend row if target field is new
+            if ($targetIndex >= count($row)) {
+                $row[] = null;
+            }
+
             // Calculate percent rank: (rank - 1) / (total - 1)
             $row[$targetIndex] = (float)(($rank - 1) / ($count - 1));
             $prevValue = $currentValue;
@@ -539,35 +577,6 @@ final class WindowFunctions
         }
 
         return $result;
-    }
-
-    /**
-     * Process table into header and rows.
-     *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return array{header: array<int|string, mixed>, rows: array<int, array<int|string, mixed>>}
-     */
-    private static function processTable(iterable $data): array
-    {
-        $header = null;
-        $rows = [];
-
-        foreach ($data as $index => $row) {
-            if ($index === 0) {
-                $header = $row;
-                continue;
-            }
-            $rows[] = $row;
-        }
-
-        if ($header === null) {
-            throw new InvalidArgumentException('Table must have a header row');
-        }
-
-        return [
-            'header' => $header,
-            'rows' => $rows,
-        ];
     }
 
     /**
