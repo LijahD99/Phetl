@@ -352,7 +352,7 @@ class Table implements IteratorAggregate
      */
     public function selectColumns(string ...$columns): self
     {
-        return new self(ColumnSelector::select($this->materializedData, $columns));
+        return new self(...ColumnSelector::select($this->headers, $this->materializedData, $columns));
     }
 
     /**
@@ -372,7 +372,7 @@ class Table implements IteratorAggregate
      */
     public function removeColumns(string ...$columns): self
     {
-        return new self(ColumnSelector::remove($this->materializedData, $columns));
+        return new self(...ColumnSelector::remove($this->headers, $this->materializedData, $columns));
     }
 
     /**
@@ -392,7 +392,7 @@ class Table implements IteratorAggregate
      */
     public function renameColumns(array $mapping): self
     {
-        return new self(ColumnRenamer::rename($this->materializedData, $mapping));
+        return new self(...ColumnRenamer::rename($this->headers, $this->materializedData, $mapping));
     }
 
     /**
@@ -412,7 +412,7 @@ class Table implements IteratorAggregate
      */
     public function addColumn(string $name, mixed $value): self
     {
-        return new self(ColumnAdder::add($this->materializedData, $name, $value));
+        return new self(...ColumnAdder::add($this->headers, $this->materializedData, $name, $value));
     }
 
     /**
@@ -430,7 +430,7 @@ class Table implements IteratorAggregate
      */
     public function addRowNumbers(string $columnName = 'row_number'): self
     {
-        return new self(ColumnAdder::addRowNumbers($this->materializedData, $columnName));
+        return new self(...ColumnAdder::addRowNumbers($this->headers, $this->materializedData, $columnName));
     }
 
     /**
@@ -441,7 +441,7 @@ class Table implements IteratorAggregate
      */
     public function convert(string $field, callable|string $converter): self
     {
-        return new self(ValueConverter::convert($this->materializedData, $field, $converter));
+        return new self(...ValueConverter::convert($this->headers, $this->materializedData, $field, $converter));
     }
 
     /**
@@ -451,7 +451,7 @@ class Table implements IteratorAggregate
      */
     public function convertMultiple(array $conversions): self
     {
-        return new self(ValueConverter::convertMultiple($this->materializedData, $conversions));
+        return new self(...ValueConverter::convertMultiple($this->headers, $this->materializedData, $conversions));
     }
 
     /**
@@ -463,7 +463,7 @@ class Table implements IteratorAggregate
      */
     public function replace(string $field, mixed $oldValue, mixed $newValue): self
     {
-        return new self(ValueReplacer::replace($this->materializedData, $field, $oldValue, $newValue));
+        return new self(...ValueReplacer::replace($this->headers, $this->materializedData, $field, $oldValue, $newValue));
     }
 
     /**
@@ -474,7 +474,7 @@ class Table implements IteratorAggregate
      */
     public function replaceMap(string $field, array $mapping): self
     {
-        return new self(ValueReplacer::replaceMap($this->materializedData, $field, $mapping));
+        return new self(...ValueReplacer::replaceMap($this->headers, $this->materializedData, $field, $mapping));
     }
 
     /**
@@ -485,7 +485,7 @@ class Table implements IteratorAggregate
      */
     public function replaceAll(mixed $oldValue, mixed $newValue): self
     {
-        return new self(ValueReplacer::replaceAll($this->materializedData, $oldValue, $newValue));
+        return new self(...ValueReplacer::replaceAll($this->headers, $this->materializedData, $oldValue, $newValue));
     }
 
     /**
@@ -495,7 +495,7 @@ class Table implements IteratorAggregate
      */
     public function filter(\Closure $predicate): self
     {
-        return new self(RowFilter::filter($this->materializedData, $predicate));
+        return new self(...RowFilter::filter($this->headers, $this->materializedData, $predicate));
     }
 
     /**
@@ -513,7 +513,7 @@ class Table implements IteratorAggregate
      */
     public function whereEquals(string $field, mixed $value): self
     {
-        return new self(RowFilter::whereEquals($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereEquals($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -521,7 +521,7 @@ class Table implements IteratorAggregate
      */
     public function whereNotEquals(string $field, mixed $value): self
     {
-        return new self(RowFilter::whereNotEquals($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereNotEquals($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -529,7 +529,7 @@ class Table implements IteratorAggregate
      */
     public function whereGreaterThan(string $field, int|float $value): self
     {
-        return new self(RowFilter::whereGreaterThan($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereGreaterThan($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -537,7 +537,7 @@ class Table implements IteratorAggregate
      */
     public function whereLessThan(string $field, int|float $value): self
     {
-        return new self(RowFilter::whereLessThan($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereLessThan($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -545,7 +545,7 @@ class Table implements IteratorAggregate
      */
     public function whereGreaterThanOrEqual(string $field, int|float $value): self
     {
-        return new self(RowFilter::whereGreaterThanOrEqual($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereGreaterThanOrEqual($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -553,7 +553,7 @@ class Table implements IteratorAggregate
      */
     public function whereLessThanOrEqual(string $field, int|float $value): self
     {
-        return new self(RowFilter::whereLessThanOrEqual($this->materializedData, $field, $value));
+        return new self(...RowFilter::whereLessThanOrEqual($this->headers, $this->materializedData, $field, $value));
     }
 
     /**
@@ -563,7 +563,7 @@ class Table implements IteratorAggregate
      */
     public function whereIn(string $field, array $values): self
     {
-        return new self(RowFilter::whereIn($this->materializedData, $field, $values));
+        return new self(...RowFilter::whereIn($this->headers, $this->materializedData, $field, $values));
     }
 
     /**
@@ -573,7 +573,7 @@ class Table implements IteratorAggregate
      */
     public function whereNotIn(string $field, array $values): self
     {
-        return new self(RowFilter::whereNotIn($this->materializedData, $field, $values));
+        return new self(...RowFilter::whereNotIn($this->headers, $this->materializedData, $field, $values));
     }
 
     /**
@@ -581,7 +581,7 @@ class Table implements IteratorAggregate
      */
     public function whereNull(string $field): self
     {
-        return new self(RowFilter::whereNull($this->materializedData, $field));
+        return new self(...RowFilter::whereNull($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -589,7 +589,7 @@ class Table implements IteratorAggregate
      */
     public function whereNotNull(string $field): self
     {
-        return new self(RowFilter::whereNotNull($this->materializedData, $field));
+        return new self(...RowFilter::whereNotNull($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -597,7 +597,7 @@ class Table implements IteratorAggregate
      */
     public function whereTrue(string $field): self
     {
-        return new self(RowFilter::whereTrue($this->materializedData, $field));
+        return new self(...RowFilter::whereTrue($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -605,7 +605,7 @@ class Table implements IteratorAggregate
      */
     public function whereFalse(string $field): self
     {
-        return new self(RowFilter::whereFalse($this->materializedData, $field));
+        return new self(...RowFilter::whereFalse($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -613,7 +613,7 @@ class Table implements IteratorAggregate
      */
     public function whereContains(string $field, string $substring): self
     {
-        return new self(RowFilter::whereContains($this->materializedData, $field, $substring));
+        return new self(...RowFilter::whereContains($this->headers, $this->materializedData, $field, $substring));
     }
 
     // =================================================================
@@ -628,12 +628,12 @@ class Table implements IteratorAggregate
      */
     public function concat(self ...$tables): self
     {
-        $iterables = [$this->materializedData];
+        $tableTuples = [[$this->headers, $this->materializedData]];
         foreach ($tables as $table) {
-            $iterables[] = $table->materializedData;
+            $tableTuples[] = [$table->headers, $table->materializedData];
         }
 
-        return new self(SetOperation::concat(...$iterables));
+        return new self(...SetOperation::concat(...$tableTuples));
     }
 
     /**
@@ -644,12 +644,12 @@ class Table implements IteratorAggregate
      */
     public function union(self ...$tables): self
     {
-        $iterables = [$this->materializedData];
+        $tableTuples = [[$this->headers, $this->materializedData]];
         foreach ($tables as $table) {
-            $iterables[] = $table->materializedData;
+            $tableTuples[] = [$table->headers, $table->materializedData];
         }
 
-        return new self(SetOperation::union(...$iterables));
+        return new self(...SetOperation::union(...$tableTuples));
     }
 
     /**
@@ -660,12 +660,12 @@ class Table implements IteratorAggregate
      */
     public function merge(self ...$tables): self
     {
-        $iterables = [$this->materializedData];
+        $tableTuples = [[$this->headers, $this->materializedData]];
         foreach ($tables as $table) {
-            $iterables[] = $table->materializedData;
+            $tableTuples[] = [$table->headers, $table->materializedData];
         }
 
-        return new self(SetOperation::merge(...$iterables));
+        return new self(...SetOperation::merge(...$tableTuples));
     }
 
     /**
@@ -677,7 +677,14 @@ class Table implements IteratorAggregate
      */
     public function innerJoin(self $right, string|array $leftKey, string|array|null $rightKey = null): self
     {
-        return new self(Join::inner($this->materializedData, $right->materializedData, $leftKey, $rightKey));
+        return new self(...Join::inner(
+            $this->headers,
+            $this->materializedData,
+            $right->headers,
+            $right->materializedData,
+            $leftKey,
+            $rightKey
+        ));
     }
 
     /**
@@ -689,7 +696,14 @@ class Table implements IteratorAggregate
      */
     public function leftJoin(self $right, string|array $leftKey, string|array|null $rightKey = null): self
     {
-        return new self(Join::left($this->materializedData, $right->materializedData, $leftKey, $rightKey));
+        return new self(...Join::left(
+            $this->headers,
+            $this->materializedData,
+            $right->headers,
+            $right->materializedData,
+            $leftKey,
+            $rightKey
+        ));
     }
 
     /**
@@ -701,7 +715,14 @@ class Table implements IteratorAggregate
      */
     public function rightJoin(self $right, string|array $leftKey, string|array|null $rightKey = null): self
     {
-        return new self(Join::right($this->materializedData, $right->materializedData, $leftKey, $rightKey));
+        return new self(...Join::right(
+            $this->headers,
+            $this->materializedData,
+            $right->headers,
+            $right->materializedData,
+            $leftKey,
+            $rightKey
+        ));
     }
 
     /**
@@ -712,7 +733,7 @@ class Table implements IteratorAggregate
      */
     public function aggregate(string|array $groupBy, array $aggregations): self
     {
-        return new self(Aggregator::aggregate($this->materializedData, $groupBy, $aggregations));
+        return new self(...Aggregator::aggregate($this->headers, $this->materializedData, $groupBy, $aggregations));
     }
 
     /**
@@ -733,7 +754,7 @@ class Table implements IteratorAggregate
      */
     public function countBy(string|array $groupBy): self
     {
-        return new self(Aggregator::count($this->materializedData, $groupBy));
+        return new self(...Aggregator::count($this->headers, $this->materializedData, $groupBy));
     }
 
     /**
@@ -744,7 +765,7 @@ class Table implements IteratorAggregate
      */
     public function sumField(string $field, string|array|null $groupBy = null): self
     {
-        return new self(Aggregator::sum($this->materializedData, $field, $groupBy));
+        return new self(...Aggregator::sum($this->headers, $this->materializedData, $field, $groupBy));
     }
 
     /**
@@ -761,7 +782,14 @@ class Table implements IteratorAggregate
         string $variableName = 'variable',
         string $valueName = 'value'
     ): self {
-        return new self(Reshaper::unpivot($this->materializedData, $idFields, $valueFields, $variableName, $valueName));
+        return new self(...Reshaper::unpivot(
+            $this->headers,
+            $this->materializedData,
+            $idFields,
+            $valueFields,
+            $variableName,
+            $valueName
+        ));
     }
 
     /**
@@ -795,7 +823,14 @@ class Table implements IteratorAggregate
         string $valueField,
         callable|string|null $aggregation = null
     ): self {
-        return new self(Reshaper::pivot($this->materializedData, $indexFields, $columnField, $valueField, $aggregation));
+        return new self(...Reshaper::pivot(
+            $this->headers,
+            $this->materializedData,
+            $indexFields,
+            $columnField,
+            $valueField,
+            $aggregation
+        ));
     }
 
     /**
@@ -803,7 +838,7 @@ class Table implements IteratorAggregate
      */
     public function transpose(): self
     {
-        return new self(Reshaper::transpose($this->materializedData));
+        return new self(...Reshaper::transpose($this->headers, $this->materializedData));
     }
 
     // =================================================================
@@ -818,7 +853,7 @@ class Table implements IteratorAggregate
      */
     public function distinct(string|array|null $fields = null): self
     {
-        return new self(Deduplicator::distinct($this->materializedData, $fields));
+        return new self(...Deduplicator::distinct($this->headers, $this->materializedData, $fields));
     }
 
     /**
@@ -829,7 +864,7 @@ class Table implements IteratorAggregate
      */
     public function unique(string|array|null $fields = null): self
     {
-        return new self(Deduplicator::unique($this->materializedData, $fields));
+        return new self(...Deduplicator::unique($this->headers, $this->materializedData, $fields));
     }
 
     /**
@@ -840,7 +875,7 @@ class Table implements IteratorAggregate
      */
     public function duplicates(string|array|null $fields = null): self
     {
-        return new self(Deduplicator::duplicates($this->materializedData, $fields));
+        return new self(...Deduplicator::duplicates($this->headers, $this->materializedData, $fields));
     }
 
     /**
@@ -852,7 +887,7 @@ class Table implements IteratorAggregate
      */
     public function countDistinct(string|array|null $fields = null, string $countField = 'count'): self
     {
-        return new self(Deduplicator::countDistinct($this->materializedData, $fields, $countField));
+        return new self(...Deduplicator::countDistinct($this->headers, $this->materializedData, $fields, $countField));
     }
 
     /**
@@ -863,7 +898,7 @@ class Table implements IteratorAggregate
      */
     public function isUnique(string|array|null $fields = null): bool
     {
-        return Deduplicator::isUnique($this->materializedData, $fields);
+        return Deduplicator::isUnique($this->headers, $this->materializedData, $fields);
     }
 
     // =================================================================
@@ -878,7 +913,7 @@ class Table implements IteratorAggregate
      */
     public function validateRequired(array $fields): array
     {
-        return Validator::required($this->materializedData, $fields);
+        return Validator::required($this->headers, $this->materializedData, $fields);
     }
 
     /**
@@ -889,7 +924,7 @@ class Table implements IteratorAggregate
      */
     public function validate(array $rules): array
     {
-        return Validator::validate($this->materializedData, $rules);
+        return Validator::validate($this->headers, $this->materializedData, $rules);
     }
 
     /**
@@ -901,7 +936,7 @@ class Table implements IteratorAggregate
      */
     public function validateOrFail(array $rules): self
     {
-        $result = Validator::validate($this->materializedData, $rules);
+        $result = Validator::validate($this->headers, $this->materializedData, $rules);
 
         if (!$result['valid']) {
             $errorCount = count($result['errors']);
@@ -919,27 +954,26 @@ class Table implements IteratorAggregate
      */
     public function filterValid(array $rules): self
     {
-        $validationResult = Validator::validate($this->materializedData, $rules);
+        $validationResult = Validator::validate($this->headers, $this->materializedData, $rules);
         $invalidRows = [];
 
         foreach ($validationResult['errors'] as $error) {
             $invalidRows[$error['row']] = true;
         }
 
-        $filtered = [];
-        $filtered[] = $this->materializedData[0]; // Header
+        $filteredData = [];
 
         foreach ($this->materializedData as $index => $row) {
-            if ($index === 0) {
-                continue; // Skip header
-            }
+            // Row indices in validation errors are 1-based (data row numbers)
+            // materializedData indices are 0-based
+            $rowNumber = $index + 1;
 
-            if (!isset($invalidRows[$index])) {
-                $filtered[] = $row;
+            if (!isset($invalidRows[$rowNumber])) {
+                $filteredData[] = $row;
             }
         }
 
-        return new self($filtered);
+        return new self($this->headers, $filteredData);
     }
 
     /**
@@ -950,27 +984,26 @@ class Table implements IteratorAggregate
      */
     public function filterInvalid(array $rules): self
     {
-        $validationResult = Validator::validate($this->materializedData, $rules);
+        $validationResult = Validator::validate($this->headers, $this->materializedData, $rules);
         $invalidRows = [];
 
         foreach ($validationResult['errors'] as $error) {
             $invalidRows[$error['row']] = true;
         }
 
-        $filtered = [];
-        $filtered[] = $this->materializedData[0]; // Header
+        $filteredData = [];
 
         foreach ($this->materializedData as $index => $row) {
-            if ($index === 0) {
-                continue; // Skip header
-            }
+            // Row indices in validation errors are 1-based (data row numbers)
+            // materializedData indices are 0-based
+            $rowNumber = $index + 1;
 
-            if (isset($invalidRows[$index])) {
-                $filtered[] = $row;
+            if (isset($invalidRows[$rowNumber])) {
+                $filteredData[] = $row;
             }
         }
 
-        return new self($filtered);
+        return new self($this->headers, $filteredData);
     }
 
     // =================================================================
@@ -985,7 +1018,7 @@ class Table implements IteratorAggregate
      */
     public function upper(string $field): self
     {
-        return new self(StringTransformer::upper($this->materializedData, $field));
+        return new self(...StringTransformer::upper($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -996,7 +1029,7 @@ class Table implements IteratorAggregate
      */
     public function lower(string $field): self
     {
-        return new self(StringTransformer::lower($this->materializedData, $field));
+        return new self(...StringTransformer::lower($this->headers, $this->materializedData, $field));
     }
 
     /**
@@ -1008,7 +1041,7 @@ class Table implements IteratorAggregate
      */
     public function trim(string $field, string $characters = " \t\n\r\0\x0B"): self
     {
-        return new self(StringTransformer::trim($this->materializedData, $field, $characters));
+        return new self(...StringTransformer::trim($this->headers, $this->materializedData, $field, $characters));
     }
 
     /**
@@ -1021,7 +1054,7 @@ class Table implements IteratorAggregate
      */
     public function concatFields(string $targetField, array $sourceFields, string $separator = ''): self
     {
-        return new self(StringTransformer::concat($this->materializedData, $targetField, $sourceFields, $separator));
+        return new self(...StringTransformer::concat($this->headers, $this->materializedData, $targetField, $sourceFields, $separator));
     }
 
     /**
@@ -1034,7 +1067,7 @@ class Table implements IteratorAggregate
      */
     public function extractPattern(string $sourceField, string $targetField, string $pattern): self
     {
-        return new self(StringTransformer::extract($this->materializedData, $sourceField, $targetField, $pattern));
+        return new self(...StringTransformer::extract($this->headers, $this->materializedData, $sourceField, $targetField, $pattern));
     }
 
     // ========================================
@@ -1058,7 +1091,8 @@ class Table implements IteratorAggregate
         mixed $thenValue,
         mixed $elseValue
     ): self {
-        return new self(ConditionalTransformer::when(
+        return new self(...ConditionalTransformer::when(
+            $this->headers,
             $this->materializedData,
             $field,
             $condition,
@@ -1077,7 +1111,7 @@ class Table implements IteratorAggregate
      */
     public function coalesce(string $target, array $fields): self
     {
-        return new self(ConditionalTransformer::coalesce($this->materializedData, $target, $fields));
+        return new self(...ConditionalTransformer::coalesce($this->headers, $this->materializedData, $target, $fields));
     }
 
     /**
@@ -1090,7 +1124,7 @@ class Table implements IteratorAggregate
      */
     public function nullIf(string $field, string $target, callable $condition): self
     {
-        return new self(ConditionalTransformer::nullIf($this->materializedData, $field, $target, $condition));
+        return new self(...ConditionalTransformer::nullIf($this->headers, $this->materializedData, $field, $target, $condition));
     }
 
     /**
@@ -1103,7 +1137,7 @@ class Table implements IteratorAggregate
      */
     public function ifNull(string $field, string $target, mixed $default): self
     {
-        return new self(ConditionalTransformer::ifNull($this->materializedData, $field, $target, $default));
+        return new self(...ConditionalTransformer::ifNull($this->headers, $this->materializedData, $field, $target, $default));
     }
 
     /**
@@ -1117,7 +1151,8 @@ class Table implements IteratorAggregate
      */
     public function case(string $field, string $target, array $conditions, mixed $default): self
     {
-        return new self(ConditionalTransformer::case(
+        return new self(...ConditionalTransformer::case(
+            $this->headers,
             $this->materializedData,
             $field,
             $target,

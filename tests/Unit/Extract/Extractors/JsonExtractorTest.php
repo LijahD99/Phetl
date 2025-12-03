@@ -167,11 +167,11 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, $json);
 
         $extractor = new JsonExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'metadata'], $result[0]);
-        $this->assertEquals('Alice', $result[1][0]);
-        $this->assertEquals(['role' => 'admin', 'level' => 5], $result[1][1]);
+        $this->assertEquals(['name', 'metadata'], $headers);
+        $this->assertEquals('Alice', $data[0][0]);
+        $this->assertEquals(['role' => 'admin', 'level' => 5], $data[0][1]);
     }
 
     public function test_it_handles_numeric_indices(): void
