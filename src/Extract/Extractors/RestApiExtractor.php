@@ -65,30 +65,29 @@ final class RestApiExtractor implements ExtractorInterface
     }
 
     /**
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable
+    public function extract(): array
     {
         // Check for mock response (testing only)
         if (isset($this->config['_mock_response']) || isset($this->config['_mock_responses'])) {
             return $this->extractFromMock();
         }
 
-        // TODO: Implement real HTTP request
+        // TODO: Implement real HTTP requests
         throw new RuntimeException('Real HTTP requests not yet implemented');
     }
 
     /**
      * Extract from mock response (for testing).
      *
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    private function extractFromMock(): iterable
+    private function extractFromMock(): array
     {
         // Handle pagination
         if (isset($this->config['pagination']) && $this->config['pagination']['type'] !== 'none') {
-            yield from $this->extractPaginated();
-            return;
+            return $this->extractPaginated();
         }
 
         // Single request (no pagination)
@@ -119,7 +118,7 @@ final class RestApiExtractor implements ExtractorInterface
         $data = $this->extractDataFromResponse($response);
 
         if ($data === []) {
-            return;
+            return [[], []];
         }
 
         // Validate all elements are arrays (objects)
@@ -131,16 +130,18 @@ final class RestApiExtractor implements ExtractorInterface
 
         // Check if field mapping is configured
         if (isset($this->config['mapping']['fields'])) {
-            yield from $this->extractWithFieldMapping($data);
-        } else {
-            // No field mapping - use original field names
-            $fields = $this->extractFieldNames($data);
-            yield array_values($fields);
-
-            foreach ($data as $row) {
-                yield $this->normalizeRow($row, $fields);
-            }
+            return $this->extractWithFieldMapping($data);
         }
+
+        // No field mapping - use original field names
+        $fields = $this->extractFieldNames($data);
+        $rows = [];
+
+        foreach ($data as $row) {
+            $rows[] = $this->normalizeRow($row, $fields);
+        }
+
+        return [array_values($fields), $rows];
     }
 
     /**
@@ -199,16 +200,17 @@ final class RestApiExtractor implements ExtractorInterface
     /**
      * Extract data from paginated API (for testing with mock responses).
      *
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    private function extractPaginated(): iterable
+    private function extractPaginated(): array
     {
         $pagination = $this->config['pagination'];
         $type = $pagination['type'];
         $mockResponses = $this->config['_mock_responses'] ?? [];
         $maxPages = $pagination['max_pages'] ?? null;
         $pageCount = 0;
-        $headerYielded = false;
+        $headers = [];
+        $allData = [];
         $allFields = [];
 
         if ($type === 'offset') {
@@ -230,11 +232,11 @@ final class RestApiExtractor implements ExtractorInterface
                     break;
                 }
 
-                // Collect fields and yield rows
-                foreach ($this->processPageData($data, $headerYielded, $allFields) as $row) {
-                    yield $row;
-                    $headerYielded = true;
+                [$pageHeaders, $pageData] = $this->processPageData($data, $headers, $allFields);
+                if ($headers === []) {
+                    $headers = $pageHeaders;
                 }
+                $allData = array_merge($allData, $pageData);
 
                 $offset += $pageSize;
                 $pageCount++;
@@ -258,10 +260,11 @@ final class RestApiExtractor implements ExtractorInterface
                     break;
                 }
 
-                foreach ($this->processPageData($data, $headerYielded, $allFields) as $row) {
-                    yield $row;
-                    $headerYielded = true;
+                [$pageHeaders, $pageData] = $this->processPageData($data, $headers, $allFields);
+                if ($headers === []) {
+                    $headers = $pageHeaders;
                 }
+                $allData = array_merge($allData, $pageData);
 
                 $page++;
                 $pageCount++;
@@ -296,10 +299,11 @@ final class RestApiExtractor implements ExtractorInterface
                     break;
                 }
 
-                foreach ($this->processPageData($data, $headerYielded, $allFields) as $row) {
-                    yield $row;
-                    $headerYielded = true;
+                [$pageHeaders, $pageData] = $this->processPageData($data, $headers, $allFields);
+                if ($headers === []) {
+                    $headers = $pageHeaders;
                 }
+                $allData = array_merge($allData, $pageData);
 
                 // Get next cursor
                 $cursor = $this->getNestedValue($response, $cursorPath);
@@ -310,28 +314,26 @@ final class RestApiExtractor implements ExtractorInterface
                 $pageCount++;
             }
         }
+
+        return [$headers, $allData];
     }
 
     /**
      * Process data from a single page.
      *
      * @param array<int, array<string, mixed>> $data
-     * @param bool $headerYielded
+     * @param array<string> $currentHeaders
      * @param array<int, string> $allFields
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    private function processPageData(array $data, bool &$headerYielded, array &$allFields): iterable
+    private function processPageData(array $data, array $currentHeaders, array &$allFields): array
     {
         // Check if field mapping is configured
         if (isset($this->config['mapping']['fields'])) {
             $fieldMapping = $this->config['mapping']['fields'];
+            $headers = array_keys($fieldMapping);
+            $pageData = [];
 
-            // Yield header if not yet yielded
-            if (! $headerYielded) {
-                yield array_keys($fieldMapping);
-            }
-
-            // Yield data rows with mapped values
             foreach ($data as $row) {
                 if (! is_array($row)) {
                     throw new InvalidArgumentException('Response must contain objects');
@@ -342,36 +344,37 @@ final class RestApiExtractor implements ExtractorInterface
                     $mappedRow[] = $this->getNestedValue($row, $sourcePath);
                 }
 
-                yield $mappedRow;
-            }
-        } else {
-            // No field mapping - extract fields from data
-            foreach ($data as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-
-                foreach (array_keys($row) as $key) {
-                    if (! in_array($key, $allFields, true)) {
-                        $allFields[] = $key;
-                    }
-                }
+                $pageData[] = $mappedRow;
             }
 
-            // Yield header if not yet yielded
-            if (! $headerYielded) {
-                yield array_values($allFields);
+            return [$headers, $pageData];
+        }
+
+        // No field mapping - extract fields from data
+        foreach ($data as $row) {
+            if (! is_array($row)) {
+                continue;
             }
 
-            // Yield data rows
-            foreach ($data as $row) {
-                if (! is_array($row)) {
-                    throw new InvalidArgumentException('Response must contain objects');
+            foreach (array_keys($row) as $key) {
+                if (! in_array($key, $allFields, true)) {
+                    $allFields[] = $key;
                 }
-
-                yield $this->normalizeRow($row, $allFields);
             }
         }
+
+        $headers = array_values($allFields);
+        $pageData = [];
+
+        foreach ($data as $row) {
+            if (! is_array($row)) {
+                throw new InvalidArgumentException('Response must contain objects');
+            }
+
+            $pageData[] = $this->normalizeRow($row, $allFields);
+        }
+
+        return [$headers, $pageData];
     }
 
     /**
@@ -448,16 +451,17 @@ final class RestApiExtractor implements ExtractorInterface
      * Extract with field mapping configuration.
      *
      * @param array<int, array<string, mixed>> $data
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    private function extractWithFieldMapping(array $data): iterable
+    private function extractWithFieldMapping(array $data): array
     {
         $fieldMapping = $this->config['mapping']['fields'];
 
-        // Yield header with mapped field names
-        yield array_keys($fieldMapping);
+        // Build header with mapped field names
+        $headers = array_keys($fieldMapping);
 
-        // Yield data rows with mapped values
+        // Build data rows with mapped values
+        $rows = [];
         foreach ($data as $row) {
             $mappedRow = [];
 
@@ -465,8 +469,10 @@ final class RestApiExtractor implements ExtractorInterface
                 $mappedRow[] = $this->getNestedValue($row, $sourcePath);
             }
 
-            yield $mappedRow;
+            $rows[] = $mappedRow;
         }
+
+        return [$headers, $rows];
     }
 
     /**

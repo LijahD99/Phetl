@@ -32,10 +32,11 @@ final class CsvLoader implements LoaderInterface
     }
 
     /**
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column names
+     * @param iterable<int, array<int|string, mixed>> $data Data rows (without header)
      * @return LoadResult Result containing row count and operation details
      */
-    public function load(iterable $data): LoadResult
+    public function load(array $headers, iterable $data): LoadResult
     {
         $handle = fopen($this->filePath, 'w');
 
@@ -44,17 +45,17 @@ final class CsvLoader implements LoaderInterface
         }
 
         $rowCount = 0;
-        $isFirstRow = true;
 
         try {
+            // Write header row
+            /** @var array<int|string, bool|float|int|string|null> $headers */
+            fputcsv($handle, $headers, $this->delimiter, $this->enclosure, $this->escape);
+
+            // Write data rows
             foreach ($data as $row) {
                 /** @var array<int|string, bool|float|int|string|null> $row */
                 fputcsv($handle, $row, $this->delimiter, $this->enclosure, $this->escape);
-
-                if (! $isFirstRow) {
-                    $rowCount++;
-                }
-                $isFirstRow = false;
+                $rowCount++;
             }
         } finally {
             fclose($handle);

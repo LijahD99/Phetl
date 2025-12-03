@@ -16,32 +16,19 @@ class RowSorter
     /**
      * Sort rows by one or more fields.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string|array<string>|Closure $key Field name, array of fields, or custom comparator
      * @param bool $reverse Sort in descending order
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
     public static function sort(
-        iterable $data,
+        array $headers,
+        array $data,
         string|array|Closure $key,
         bool $reverse = false
-    ): Generator {
-        $headerProcessed = false;
-        /** @var array<int|string, mixed> $header */
-        $header = [];
-        /** @var array<int, array<int|string, mixed>> $rows */
-        $rows = [];
-
-        // Collect all data
-        foreach ($data as $row) {
-            if (!$headerProcessed) {
-                $header = $row;
-                yield $row;
-                $headerProcessed = true;
-                continue;
-            }
-            $rows[] = $row;
-        }
+    ): array {
+        $rows = $data;
 
         // Sort the rows
         if ($key instanceof Closure) {
@@ -50,7 +37,7 @@ class RowSorter
         } else {
             // Sort by field(s)
             $fields = is_array($key) ? $key : [$key];
-            $fieldIndices = self::getFieldIndices($header, $fields);
+            $fieldIndices = self::getFieldIndices($headers, $fields);
 
             usort($rows, function ($a, $b) use ($fieldIndices, $reverse): int {
                 foreach ($fieldIndices as $index) {
@@ -80,10 +67,7 @@ class RowSorter
             });
         }
 
-        // Yield sorted rows
-        foreach ($rows as $row) {
-            yield $row;
-        }
+        return [$headers, $rows];
     }
 
     /**

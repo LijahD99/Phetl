@@ -42,23 +42,31 @@ use Traversable;
  * Main Table class for PHETL ETL operations.
  *
  * Wraps an iterable data source and provides fluent API for transformations.
- * First row is expected to be headers, subsequent rows are data.
+ * Headers are stored separately from data rows for clarity and flexibility.
  *
  * @implements IteratorAggregate<int, array<int|string, mixed>>
  */
 class Table implements IteratorAggregate
 {
     /**
+     * @var array<string>
+     */
+    private readonly array $headers;
+
+    /**
      * @var array<int, array<int|string, mixed>>
      */
     private readonly array $materializedData;
 
     /**
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column names
+     * @param iterable<int, array<int|string, mixed>> $data Data rows (without header)
      */
     public function __construct(
+        array $headers,
         iterable $data
     ) {
+        $this->headers = $headers;
         // Materialize the data to allow multiple iterations
         $this->materializedData = is_array($data) ? $data : iterator_to_array($data, false);
     }
@@ -66,12 +74,21 @@ class Table implements IteratorAggregate
     /**
      * Create a Table from an array.
      *
+     * Supports two formats:
+     * 1. Backward compatible: First row is headers
+     *    fromArray([['name', 'age'], ['Alice', 30]])
+     *
+     * 2. Explicit headers (recommended):
+     *    fromArray([['Alice', 30]], ['name', 'age'])
+     *
      * @param array<int, array<int|string, mixed>> $data
+     * @param array<string>|null $headers Explicit headers (null = first row is header)
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data, ?array $headers = null): self
     {
-        $extractor = new ArrayExtractor($data);
-        return new self($extractor->extract());
+        $extractor = new ArrayExtractor($data, $headers);
+        [$extractedHeaders, $extractedData] = $extractor->extract();
+        return new self($extractedHeaders, $extractedData);
     }
 
     /**
@@ -81,10 +98,12 @@ class Table implements IteratorAggregate
         string $filePath,
         string $delimiter = ',',
         string $enclosure = '"',
-        string $escape = '\\'
+        string $escape = '\\',
+        bool $hasHeaders = true
     ): self {
-        $extractor = new CsvExtractor($filePath, $delimiter, $enclosure, $escape);
-        return new self($extractor->extract());
+        $extractor = new CsvExtractor($filePath, $delimiter, $enclosure, $escape, $hasHeaders);
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -93,7 +112,8 @@ class Table implements IteratorAggregate
     public static function fromJson(string $filePath): self
     {
         $extractor = new JsonExtractor($filePath);
-        return new self($extractor->extract());
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -104,7 +124,8 @@ class Table implements IteratorAggregate
     public static function fromDatabase(PDO $pdo, string $query, array $params = []): self
     {
         $extractor = new DatabaseExtractor($pdo, $query, $params);
-        return new self($extractor->extract());
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -115,7 +136,8 @@ class Table implements IteratorAggregate
     public static function fromRestApi(string $url, array $config = []): self
     {
         $extractor = new RestApiExtractor($url, $config);
-        return new self($extractor->extract());
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -123,10 +145,11 @@ class Table implements IteratorAggregate
      *
      * @param string|int|null $sheet Sheet name (string), index (int), or null for active sheet
      */
-    public static function fromExcel(string $filePath, string|int|null $sheet = null): self
+    public static function fromExcel(string $filePath, string|int|null $sheet = null, bool $hasHeaders = true): self
     {
-        $extractor = new ExcelExtractor($filePath, $sheet);
-        return new self($extractor->extract());
+        $extractor = new ExcelExtractor($filePath, $sheet, $hasHeaders);
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -134,7 +157,8 @@ class Table implements IteratorAggregate
      */
     public static function fromExtractor(ExtractorInterface $extractor): self
     {
-        return new self($extractor->extract());
+        [$headers, $data] = $extractor->extract();
+        return new self($headers, $data);
     }
 
     /**
@@ -147,7 +171,7 @@ class Table implements IteratorAggregate
         string $escape = '\\'
     ): LoadResult {
         $loader = new CsvLoader($filePath, $delimiter, $enclosure, $escape);
-        return $loader->load($this->materializedData);
+        return $loader->load($this->headers, $this->materializedData);
     }
 
     /**
@@ -156,7 +180,7 @@ class Table implements IteratorAggregate
     public function toJson(string $filePath, bool $prettyPrint = false): LoadResult
     {
         $loader = new JsonLoader($filePath, $prettyPrint);
-        return $loader->load($this->materializedData);
+        return $loader->load($this->headers, $this->materializedData);
     }
 
     /**
@@ -165,7 +189,7 @@ class Table implements IteratorAggregate
     public function toDatabase(PDO $pdo, string $tableName): LoadResult
     {
         $loader = new DatabaseLoader($pdo, $tableName);
-        return $loader->load($this->materializedData);
+        return $loader->load($this->headers, $this->materializedData);
     }
 
     /**
@@ -176,7 +200,7 @@ class Table implements IteratorAggregate
     public function toExcel(string $filePath, string|int|null $sheet = null): LoadResult
     {
         $loader = new ExcelLoader($filePath, $sheet);
-        return $loader->load($this->materializedData);
+        return $loader->load($this->headers, $this->materializedData);
     }
 
     /**
@@ -184,21 +208,22 @@ class Table implements IteratorAggregate
      */
     public function toLoader(LoaderInterface $loader): LoadResult
     {
-        return $loader->load($this->materializedData);
+        return $loader->load($this->headers, $this->materializedData);
     }
 
     /**
      * Get the underlying data as an array (materializes all rows).
+     * Returns header row followed by data rows for backward compatibility.
      *
      * @return array<int, array<int|string, mixed>>
      */
     public function toArray(): array
     {
-        return iterator_to_array($this->getIterator(), false);
+        return array_merge([$this->headers], $this->materializedData);
     }
 
     /**
-     * Get iterator for the table data.
+     * Get iterator for the table data (data rows only, no header).
      *
      * @return Traversable<int, array<int|string, mixed>>
      */
@@ -208,13 +233,13 @@ class Table implements IteratorAggregate
     }
 
     /**
-     * Display first N rows (for debugging/inspection).
+     * Display first N data rows with header (for debugging/inspection).
      *
      * @return array<int, array<int|string, mixed>>
      */
     public function look(int $limit = 10): array
     {
-        $rows = [];
+        $rows = [$this->headers];
         $count = 0;
 
         foreach ($this->materializedData as $row) {
@@ -230,7 +255,7 @@ class Table implements IteratorAggregate
     }
 
     /**
-     * Count the number of rows (including header).
+     * Count the number of data rows (excluding header).
      */
     public function count(): int
     {
@@ -238,44 +263,43 @@ class Table implements IteratorAggregate
     }
 
     /**
-     * Get the header row (first row).
+     * Get the header row (column names).
      *
-     * @return array<int|string, mixed>
+     * @return array<string>
      */
     public function header(): array
     {
-        if ($this->materializedData === []) {
-            return [];
-        }
-
-        return $this->materializedData[0];
+        return $this->headers;
     }
 
     // ==================== TRANSFORMATIONS ====================
 
     /**
-     * Select the first N rows (plus header).
+     * Select the first N rows (data rows, header is preserved).
      */
     public function head(int $limit): self
     {
-        return new self(RowSelector::head($this->materializedData, $limit));
+        [$headers, $data] = RowSelector::head($this->headers, $this->materializedData, $limit);
+        return new self($headers, $data);
     }
 
     /**
-     * Select the last N rows (plus header).
+     * Select the last N rows (data rows, header is preserved).
      */
     public function tail(int $limit): self
     {
-        return new self(RowSelector::tail($this->materializedData, $limit));
+        [$headers, $data] = RowSelector::tail($this->headers, $this->materializedData, $limit);
+        return new self($headers, $data);
     }
 
     /**
      * Select a slice of rows by range.
-     * Start and stop indices exclude the header (0-indexed data rows).
+     * Start and stop indices are for data rows (0-indexed, header is preserved).
      */
     public function slice(int $start, ?int $stop = null, int $step = 1): self
     {
-        return new self(RowSelector::slice($this->materializedData, $start, $stop, $step));
+        [$headers, $data] = RowSelector::slice($this->headers, $this->materializedData, $start, $stop, $step);
+        return new self($headers, $data);
     }
 
     /**
@@ -283,7 +307,8 @@ class Table implements IteratorAggregate
      */
     public function skip(int $count): self
     {
-        return new self(RowSelector::skip($this->materializedData, $count));
+        [$headers, $data] = RowSelector::skip($this->headers, $this->materializedData, $count);
+        return new self($headers, $data);
     }
 
     /**
@@ -294,7 +319,8 @@ class Table implements IteratorAggregate
      */
     public function sort(string|array|\Closure $key, bool $reverse = false): self
     {
-        return new self(RowSorter::sort($this->materializedData, $key, $reverse));
+        [$headers, $data] = RowSorter::sort($this->headers, $this->materializedData, $key, $reverse);
+        return new self($headers, $data);
     }
 
     /**
@@ -304,7 +330,8 @@ class Table implements IteratorAggregate
      */
     public function sortBy(string ...$fields): self
     {
-        return new self(RowSorter::sort($this->materializedData, $fields, false));
+        [$headers, $data] = RowSorter::sort($this->headers, $this->materializedData, $fields, false);
+        return new self($headers, $data);
     }
 
     /**
@@ -314,7 +341,8 @@ class Table implements IteratorAggregate
      */
     public function sortByDesc(string ...$fields): self
     {
-        return new self(RowSorter::sort($this->materializedData, $fields, true));
+        [$headers, $data] = RowSorter::sort($this->headers, $this->materializedData, $fields, true);
+        return new self($headers, $data);
     }
 
     /**

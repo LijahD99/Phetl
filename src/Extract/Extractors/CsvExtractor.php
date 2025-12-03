@@ -20,31 +20,54 @@ final class CsvExtractor implements ExtractorInterface
      * @param string $delimiter Field delimiter (default: comma)
      * @param string $enclosure Field enclosure character (default: double quote)
      * @param string $escape Escape character (default: backslash)
+     * @param bool $hasHeaders Whether first row contains headers (default: true)
      */
     public function __construct(
         private readonly string $filePath,
         private readonly string $delimiter = ',',
         private readonly string $enclosure = '"',
-        private readonly string $escape = '\\'
+        private readonly string $escape = '\\',
+        private readonly bool $hasHeaders = true
     ) {
         $this->validate();
     }
 
     /**
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable
+    public function extract(): array
     {
         $handle = fopen($this->filePath, 'r');
 
         if ($handle === false) {
-            return;
+            return [[], []];
         }
 
         try {
-            while (($row = fgetcsv($handle, 0, $this->delimiter, $this->enclosure, $this->escape)) !== false) {
-                yield $row;
+            $headers = [];
+            $data = [];
+
+            if ($this->hasHeaders) {
+                // Read header row
+                $headerRow = fgetcsv($handle, 0, $this->delimiter, $this->enclosure, $this->escape);
+                if ($headerRow !== false) {
+                    $headers = array_map('strval', $headerRow);
+                }
+            } else {
+                // Auto-generate headers based on first row column count
+                $firstRow = fgetcsv($handle, 0, $this->delimiter, $this->enclosure, $this->escape);
+                if ($firstRow !== false) {
+                    $headers = array_map(fn($i) => "col_$i", array_keys($firstRow));
+                    $data[] = $firstRow; // Include first row as data
+                }
             }
+
+            // Read data rows
+            while (($row = fgetcsv($handle, 0, $this->delimiter, $this->enclosure, $this->escape)) !== false) {
+                $data[] = $row;
+            }
+
+            return [$headers, $data];
         } finally {
             fclose($handle);
         }

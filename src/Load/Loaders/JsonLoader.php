@@ -28,21 +28,15 @@ final class JsonLoader implements LoaderInterface
     }
 
     /**
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column names
+     * @param iterable<int, array<int|string, mixed>> $data Data rows (without header)
      * @return LoadResult Result containing row count and operation details
      */
-    public function load(iterable $data): LoadResult
+    public function load(array $headers, iterable $data): LoadResult
     {
-        $headers = null;
         $objects = [];
 
         foreach ($data as $row) {
-            if ($headers === null) {
-                $headers = array_values($row);
-
-                continue;
-            }
-
             // Convert row array to object using headers as keys
             $object = [];
             foreach ($headers as $index => $header) {

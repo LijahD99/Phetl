@@ -15,43 +15,38 @@ class ColumnRenamer
     /**
      * Rename columns using a mapping array.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param array<string, string> $mapping Old name => New name
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function rename(iterable $data, array $mapping): Generator
+    public static function rename(array $headers, array $data, array $mapping): array
     {
         if ($mapping === []) {
-            yield from $data;
-            return;
+            return [$headers, $data];
         }
 
-        $headerProcessed = false;
-
-        foreach ($data as $row) {
-            if (!$headerProcessed) {
-                // Rename header columns
-                $newHeader = [];
-                foreach ($row as $column) {
-                    $newHeader[] = $mapping[$column] ?? $column;
-                }
-                yield $newHeader;
-                $headerProcessed = true;
-                continue;
-            }
-
-            // Data rows pass through unchanged
-            yield $row;
+        // Rename header columns
+        $newHeaders = [];
+        foreach ($headers as $column) {
+            $newHeaders[] = $mapping[$column] ?? $column;
         }
+
+        // Data rows remain unchanged
+        return [$newHeaders, $data];
     }
 
     /**
      * Rename a single column.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param string $oldName
+     * @param string $newName
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function renameColumn(iterable $data, string $oldName, string $newName): Generator
+    public static function renameColumn(array $headers, array $data, string $oldName, string $newName): array
     {
-        return self::rename($data, [$oldName => $newName]);
+        return self::rename($headers, $data, [$oldName => $newName]);
     }
 }

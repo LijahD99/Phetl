@@ -25,44 +25,44 @@ final class JsonExtractor implements ExtractorInterface
     }
 
     /**
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable
+    public function extract(): array
     {
         $content = file_get_contents($this->filePath);
 
         if ($content === false) {
-            return;
+            return [[], []];
         }
 
-        $data = json_decode($content, true);
+        $jsonData = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new InvalidArgumentException('Invalid JSON in file: ' . json_last_error_msg());
         }
 
-        if (! is_array($data)) {
+        if (! is_array($jsonData)) {
             throw new InvalidArgumentException('JSON file must contain an array of objects');
         }
 
-        if ($data === []) {
-            return;
+        if ($jsonData === []) {
+            return [[], []];
         }
 
         // Extract all unique field names from all objects
-        $fields = $this->extractFieldNames($data);
+        $fields = $this->extractFieldNames($jsonData);
 
-        // Yield header row
-        yield array_values($fields);
-
-        // Yield data rows
-        foreach ($data as $row) {
+        // Build data rows
+        $data = [];
+        foreach ($jsonData as $row) {
             if (! is_array($row)) {
                 throw new InvalidArgumentException('JSON file must contain an array of objects');
             }
 
-            yield $this->normalizeRow($row, $fields);
+            $data[] = $this->normalizeRow($row, $fields);
         }
+
+        return [array_values($fields), $data];
     }
 
     /**

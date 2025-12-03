@@ -16,82 +16,83 @@ class ColumnAdder
     /**
      * Add a new column with a computed value.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param string $columnName Name of the new column
      * @param mixed|Closure $value Value or function to compute value
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function add(iterable $data, string $columnName, mixed $value): Generator
+    public static function add(array $headers, array $data, string $columnName, mixed $value): array
     {
         if ($columnName === '') {
             throw new InvalidArgumentException('Column name cannot be empty');
         }
 
-        $headerProcessed = false;
-        /** @var array<int|string, mixed>|null $header */
-        $header = null;
+        // Add new column to header
+        $newHeaders = $headers;
+        $newHeaders[] = $columnName;
 
+        // Add computed value to each data row
+        $newData = [];
         foreach ($data as $row) {
-            if (!$headerProcessed) {
-                // Add new column to header
-                $header = $row;
-                $row[] = $columnName;
-                yield $row;
-                $headerProcessed = true;
-                continue;
-            }
-
             // Compute value for new column
             if ($value instanceof Closure) {
                 // Create associative array for easier access in closure
                 $assocRow = [];
-                if ($header !== null) {
-                    foreach ($header as $index => $col) {
-                        $assocRow[$col] = $row[$index] ?? null;
-                    }
+                foreach ($headers as $index => $col) {
+                    $assocRow[$col] = $row[$index] ?? null;
                 }
                 $computedValue = $value($assocRow);
             } else {
                 $computedValue = $value;
             }
 
-            $row[] = $computedValue;
-            yield $row;
+            $newRow = $row;
+            $newRow[] = $computedValue;
+            $newData[] = $newRow;
         }
+
+        return [$newHeaders, $newData];
     }
 
     /**
      * Add a column with a constant value.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param string $columnName
+     * @param mixed $value
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function addConstant(iterable $data, string $columnName, mixed $value): Generator
+    public static function addConstant(array $headers, array $data, string $columnName, mixed $value): array
     {
-        return self::add($data, $columnName, $value);
+        return self::add($headers, $data, $columnName, $value);
     }
 
     /**
-     * Add a row number column (1-indexed, excluding header).
+     * Add a row number column (1-indexed).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param string $columnName
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function addRowNumbers(iterable $data, string $columnName = 'row_number'): Generator
+    public static function addRowNumbers(array $headers, array $data, string $columnName = 'row_number'): array
     {
-        $headerProcessed = false;
+        // Add row number column to header
+        $newHeaders = $headers;
+        $newHeaders[] = $columnName;
+
+        // Add row numbers to each data row (1-indexed)
+        $newData = [];
         $rowNumber = 0;
-
         foreach ($data as $row) {
-            if (!$headerProcessed) {
-                // Add row number column to header
-                $row[] = $columnName;
-                yield $row;
-                $headerProcessed = true;
-                continue;
-            }
-
             $rowNumber++;
-            $row[] = $rowNumber;
-            yield $row;
+            $newRow = $row;
+            $newRow[] = $rowNumber;
+            $newData[] = $newRow;
         }
+
+        return [$newHeaders, $newData];
     }
 }

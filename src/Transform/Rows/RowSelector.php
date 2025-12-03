@@ -13,72 +13,60 @@ use InvalidArgumentException;
 class RowSelector
 {
     /**
-     * Select the first N rows (plus header).
+     * Select the first N rows.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param int $limit
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function head(iterable $data, int $limit): Generator
+    public static function head(array $headers, array $data, int $limit): array
     {
         if ($limit < 0) {
             throw new InvalidArgumentException('Limit must be non-negative');
         }
 
-        $count = 0;
-
-        foreach ($data as $row) {
-            yield $row;
-            $count++;
-
-            // First row is header, so limit+1 total rows
-            if ($count > $limit) {
-                break;
-            }
-        }
+        return [
+            $headers,
+            array_slice($data, 0, $limit)
+        ];
     }
 
     /**
-     * Select the last N rows (plus header).
+     * Select the last N rows.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param int $limit
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function tail(iterable $data, int $limit): Generator
+    public static function tail(array $headers, array $data, int $limit): array
     {
         if ($limit < 0) {
             throw new InvalidArgumentException('Limit must be non-negative');
         }
-
-        // Materialize to get last N rows
-        $rows = is_array($data) ? $data : iterator_to_array($data, false);
-
-        if ($rows === []) {
-            return;
-        }
-
-        // First row is always the header
-        yield $rows[0];
 
         if ($limit === 0) {
-            return;
+            return [$headers, []];
         }
 
-        // Get last N data rows
-        $dataRows = array_slice($rows, 1);
-        $lastRows = array_slice($dataRows, -$limit);
-
-        foreach ($lastRows as $row) {
-            yield $row;
-        }
+        return [
+            $headers,
+            array_slice($data, -$limit)
+        ];
     }
 
     /**
-     * Select a slice of rows by range (excluding header).
+     * Select a slice of rows by range.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param int $start
+     * @param int|null $stop
+     * @param int $step
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function slice(iterable $data, int $start, ?int $stop = null, int $step = 1): Generator
+    public static function slice(array $headers, array $data, int $start, ?int $stop = null, int $step = 1): array
     {
         if ($start < 0) {
             throw new InvalidArgumentException('Start index must be non-negative');
@@ -92,67 +80,33 @@ class RowSelector
             throw new InvalidArgumentException('Step must be positive');
         }
 
-        $rowIndex = 0;
-        $outputIndex = 0;
+        $result = [];
+        $length = $stop ?? count($data);
 
-        foreach ($data as $row) {
-            // Always yield header
-            if ($rowIndex === 0) {
-                yield $row;
-                $rowIndex++;
-                continue;
-            }
-
-            $dataIndex = $rowIndex - 1; // Exclude header from index
-
-            // Check if this row is in range
-            if ($dataIndex >= $start && ($stop === null || $dataIndex < $stop)) {
-                // Check if this row matches step
-                if (($dataIndex - $start) % $step === 0) {
-                    yield $row;
-                    $outputIndex++;
-                }
-            }
-
-            // Stop early if we've passed the stop index
-            if ($stop !== null && $dataIndex >= $stop) {
-                break;
-            }
-
-            $rowIndex++;
+        for ($i = $start; $i < $length && $i < count($data); $i += $step) {
+            $result[] = $data[$i];
         }
+
+        return [$headers, $result];
     }
 
     /**
-     * Skip the first N rows (after header).
+     * Skip the first N rows.
      *
-     * @param iterable<int, array<int|string, mixed>> $data
-     * @return Generator<int, array<int|string, mixed>>
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
+     * @param int $count
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function skip(iterable $data, int $count): Generator
+    public static function skip(array $headers, array $data, int $count): array
     {
         if ($count < 0) {
             throw new InvalidArgumentException('Count must be non-negative');
         }
 
-        $rowIndex = 0;
-
-        foreach ($data as $row) {
-            // Always yield header
-            if ($rowIndex === 0) {
-                yield $row;
-                $rowIndex++;
-                continue;
-            }
-
-            $dataIndex = $rowIndex - 1;
-
-            // Skip first N data rows
-            if ($dataIndex >= $count) {
-                yield $row;
-            }
-
-            $rowIndex++;
-        }
+        return [
+            $headers,
+            array_slice($data, $count)
+        ];
     }
 }

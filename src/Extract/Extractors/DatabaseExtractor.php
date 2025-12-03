@@ -30,9 +30,9 @@ final class DatabaseExtractor implements ExtractorInterface
     }
 
     /**
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable
+    public function extract(): array
     {
         $statement = $this->pdo->prepare($this->query);
         $statement->execute($this->params);
@@ -46,14 +46,14 @@ final class DatabaseExtractor implements ExtractorInterface
             $headers[] = $meta['name'] ?? "column_$i";
         }
 
-        // Yield header row
-        yield $headers;
-
-        // Yield data rows
+        // Fetch all data rows
+        $data = [];
         while (($row = $statement->fetch(PDO::FETCH_NUM)) !== false) {
             /** @var array<int|string, mixed> $row */
-            yield $row;
+            $data[] = $row;
         }
+
+        return [$headers, $data];
     }
 
     /**

@@ -40,14 +40,26 @@ class ExcelLoader implements LoaderInterface
     /**
      * Load data to the Excel file
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column names
+     * @param iterable<int, array<int|string, mixed>> $data Data rows (without header)
      * @return LoadResult Result containing row count and operation details
      */
-    public function load(iterable $data): LoadResult
+    public function load(array $headers, iterable $data): LoadResult
     {
         $rowCount = 0;
-        $isFirstRow = true;
 
+        // Write headers
+        if (!empty($headers)) {
+            $col = 1;
+            foreach ($headers as $value) {
+                $coordinate = Coordinate::stringFromColumnIndex($col) . $this->currentRow;
+                $this->worksheet->setCellValue($coordinate, $value);
+                $col++;
+            }
+            $this->currentRow++;
+        }
+
+        // Write data rows
         foreach ($data as $row) {
             if (empty($row)) {
                 $this->currentRow++;
@@ -62,11 +74,7 @@ class ExcelLoader implements LoaderInterface
             }
 
             $this->currentRow++;
-
-            if (!$isFirstRow) {
-                $rowCount++;
-            }
-            $isFirstRow = false;
+            $rowCount++;
         }
 
         $this->save();

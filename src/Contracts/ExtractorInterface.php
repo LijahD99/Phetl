@@ -8,18 +8,18 @@ namespace Phetl\Contracts;
  * Interface for data extractors that provide tabular data.
  *
  * An extractor is responsible for reading data from a source and
- * providing it as an iterable of rows (arrays).
+ * providing it as headers and data rows separately.
  */
 interface ExtractorInterface
 {
     /**
      * Extract data from the source.
      *
-     * Returns an iterable where:
-     * - First element is the header row (array of field names)
-     * - Subsequent elements are data rows (arrays of values)
+     * Returns a tuple:
+     * - Index 0: array of column names (headers)
+     * - Index 1: iterable of data rows (without header)
      *
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: iterable<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable;
+    public function extract(): array;
 }

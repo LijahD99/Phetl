@@ -14,25 +14,26 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Extracts data from Excel files (.xlsx, .xls).
  *
  * Supports multiple sheets, formulas, and various data types.
- * Uses lazy evaluation for memory efficiency with large files.
  */
 final class ExcelExtractor implements ExtractorInterface
 {
     /**
      * @param string $filePath Path to the Excel file
      * @param string|int|null $sheet Sheet name or index (0-based), null for active sheet
+     * @param bool $hasHeaders Whether first row contains headers (default: true)
      */
     public function __construct(
         private readonly string $filePath,
-        private readonly string|int|null $sheet = null
+        private readonly string|int|null $sheet = null,
+        private readonly bool $hasHeaders = true
     ) {
         $this->validate();
     }
 
     /**
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): Generator
+    public function extract(): array
     {
         $spreadsheet = IOFactory::load($this->filePath);
 
@@ -46,11 +47,33 @@ final class ExcelExtractor implements ExtractorInterface
 
         // If sheet is empty, return early
         if ($highestRow === 1 && $worksheet->getCell('A1')->getValue() === null) {
-            return;
+            return [[], []];
         }
 
-        // Iterate through rows
-        for ($row = 1; $row <= $highestRow; $row++) {
+        $headers = [];
+        $data = [];
+        $startRow = 1;
+
+        if ($this->hasHeaders) {
+            // Read header row
+            for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                $coordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col) . '1';
+                $cell = $worksheet->getCell($coordinate);
+                $value = $cell->getCalculatedValue(); // Evaluates formulas
+
+                $headers[] = (string)($value ?? "col_" . ($col - 1));
+            }
+            $startRow = 2;
+        } else {
+            // Auto-generate headers
+            for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                $headers[] = "col_" . ($col - 1);
+            }
+            $startRow = 1;
+        }
+
+        // Iterate through data rows
+        for ($row = $startRow; $row <= $highestRow; $row++) {
             $rowData = [];
 
             for ($col = 1; $col <= $highestColumnIndex; $col++) {
@@ -61,8 +84,10 @@ final class ExcelExtractor implements ExtractorInterface
                 $rowData[] = $value;
             }
 
-            yield $rowData;
+            $data[] = $rowData;
         }
+
+        return [$headers, $data];
     }
 
     /**

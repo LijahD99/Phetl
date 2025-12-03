@@ -11,27 +11,42 @@ use Phetl\Contracts\ExtractorInterface;
  * Extracts data from a PHP array.
  *
  * Provides a simple way to create a table from in-memory array data.
- * The first row must be the header (field names), followed by data rows.
+ * Supports two formats:
+ * 1. First row is header (backward compatible)
+ * 2. Explicit headers provided separately (recommended)
  */
 final class ArrayExtractor implements ExtractorInterface
 {
     /**
      * @param array<int, array<int|string, mixed>> $data
+     * @param array<string>|null $headers Explicit headers (null = first row is header)
      */
     public function __construct(
-        private readonly array $data
+        private readonly array $data,
+        private readonly ?array $headers = null
     ) {
         $this->validate();
     }
 
     /**
-     * @return iterable<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public function extract(): iterable
+    public function extract(): array
     {
-        foreach ($this->data as $row) {
-            yield $row;
+        if ($this->headers !== null) {
+            // Explicit headers provided
+            return [$this->headers, $this->data];
         }
+
+        // Backward compatible: first row is header
+        if ($this->data === []) {
+            return [[], []];
+        }
+
+        $headers = array_values(array_map('strval', $this->data[0]));
+        $dataRows = array_slice($this->data, 1);
+
+        return [$headers, $dataRows];
     }
 
     /**
@@ -39,8 +54,8 @@ final class ArrayExtractor implements ExtractorInterface
      */
     private function validate(): void
     {
-        if ($this->data === []) {
-            throw new InvalidArgumentException('Data array must contain at least a header row');
+        if ($this->headers === null && $this->data === []) {
+            throw new InvalidArgumentException('Data array must contain at least a header row when headers are not provided');
         }
     }
 }

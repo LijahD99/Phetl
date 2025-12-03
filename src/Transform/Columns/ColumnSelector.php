@@ -15,91 +15,72 @@ class ColumnSelector
     /**
      * Select specific columns by name (cut in petl).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param array<int|string> $columns Column names to keep
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function select(iterable $data, array $columns): Generator
+    public static function select(array $headers, array $data, array $columns): array
     {
         if ($columns === []) {
             throw new InvalidArgumentException('At least one column must be specified');
         }
 
-        $headerProcessed = false;
-        /** @var array<int, int|string>|null $columnIndices */
-        $columnIndices = null;
+        $columnIndices = self::buildColumnIndices($headers, $columns);
 
-        foreach ($data as $row) {
-            if (!$headerProcessed) {
-                // First row is header - build index mapping
-                $columnIndices = self::buildColumnIndices($row, $columns);
-
-                // Yield selected header columns
-                $selectedHeader = [];
-                foreach ($columnIndices as $index) {
-                    $selectedHeader[] = $row[$index];
-                }
-                yield $selectedHeader;
-
-                $headerProcessed = true;
-                continue;
-            }
-
-            // Select data from specified columns
-            $selectedRow = [];
-            if ($columnIndices !== null) {
-                foreach ($columnIndices as $index) {
-                    $selectedRow[] = $row[$index] ?? null;
-                }
-            }
-            yield $selectedRow;
+        // Build selected header
+        $selectedHeader = [];
+        foreach ($columnIndices as $index) {
+            $selectedHeader[] = $headers[$index];
         }
+
+        // Build selected data rows
+        $selectedData = [];
+        foreach ($data as $row) {
+            $selectedRow = [];
+            foreach ($columnIndices as $index) {
+                $selectedRow[] = $row[$index] ?? null;
+            }
+            $selectedData[] = $selectedRow;
+        }
+
+        return [$selectedHeader, $selectedData];
     }
 
     /**
      * Remove specific columns by name (cutout in petl).
      *
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers
+     * @param array<int, array<int|string, mixed>> $data
      * @param array<int|string> $columns Column names to remove
-     * @return Generator<int, array<int|string, mixed>>
+     * @return array{0: array<string>, 1: array<int, array<int|string, mixed>>}
      */
-    public static function remove(iterable $data, array $columns): Generator
+    public static function remove(array $headers, array $data, array $columns): array
     {
         if ($columns === []) {
-            // No columns to remove, yield all data
-            yield from $data;
-            return;
+            // No columns to remove, return all data
+            return [$headers, $data];
         }
 
-        $headerProcessed = false;
-        /** @var array<int, int|string>|null $keepIndices */
-        $keepIndices = null;
+        $keepIndices = self::buildKeepIndices($headers, $columns);
 
+        // Build remaining header
+        $remainingHeader = [];
+        foreach ($keepIndices as $index) {
+            $remainingHeader[] = $headers[$index];
+        }
+
+        // Build remaining data rows
+        $remainingData = [];
         foreach ($data as $row) {
-            if (!$headerProcessed) {
-                // First row is header - determine which columns to keep
-                $keepIndices = self::buildKeepIndices($row, $columns);
-
-                // Yield remaining header columns
-                $remainingHeader = [];
-                foreach ($keepIndices as $index) {
-                    $remainingHeader[] = $row[$index];
-                }
-                yield $remainingHeader;
-
-                $headerProcessed = true;
-                continue;
-            }
-
-            // Keep data from non-removed columns
             $remainingRow = [];
-            if ($keepIndices !== null) {
-                foreach ($keepIndices as $index) {
-                    $remainingRow[] = $row[$index] ?? null;
-                }
+            foreach ($keepIndices as $index) {
+                $remainingRow[] = $row[$index] ?? null;
             }
-            yield $remainingRow;
+            $remainingData[] = $remainingRow;
         }
+
+        return [$remainingHeader, $remainingData];
     }
 
     /**

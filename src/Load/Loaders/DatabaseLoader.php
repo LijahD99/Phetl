@@ -32,12 +32,12 @@ final class DatabaseLoader implements LoaderInterface
     }
 
     /**
-     * @param iterable<int, array<int|string, mixed>> $data
+     * @param array<string> $headers Column names
+     * @param iterable<int, array<int|string, mixed>> $data Data rows (without header)
      * @return LoadResult Result containing row count and operation details
      */
-    public function load(iterable $data): LoadResult
+    public function load(array $headers, iterable $data): LoadResult
     {
-        $headers = null;
         $rowCount = 0;
 
         // Start transaction for atomicity
@@ -45,13 +45,6 @@ final class DatabaseLoader implements LoaderInterface
 
         try {
             foreach ($data as $row) {
-                if ($headers === null) {
-                    /** @var array<int, string> $row */
-                    $headers = array_values($row);
-
-                    continue;
-                }
-
                 $this->insertRow($headers, $row);
                 $rowCount++;
             }
