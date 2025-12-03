@@ -108,10 +108,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['Name', 'Age', 'City'],
+        expect($headers)->toBe(['Name', 'Age', 'City']);
+        expect($data)->toBe([
             ['Alice', 25, 'New York'],
             ['Bob', 30, 'London'],
         ]);
@@ -131,9 +131,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $generator = $extractor->extract();
+        $result = $extractor->extract();
 
-        expect($generator)->toBeInstanceOf(Generator::class);
+        expect($result)->toBeArray();
+        expect($result)->toHaveCount(2);
     });
 
     it('can be iterated multiple times', function () {
@@ -145,8 +146,8 @@ describe('ExcelExtractor', function () {
 
         $extractor = new ExcelExtractor($filePath);
 
-        $first = iterator_to_array($extractor->extract());
-        $second = iterator_to_array($extractor->extract());
+        $first = $extractor->extract();
+        $second = $extractor->extract();
 
         expect($first)->toBe($second);
     });
@@ -156,9 +157,10 @@ describe('ExcelExtractor', function () {
         ($this->createSimpleExcel)($filePath, []);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([]);
+        expect($headers)->toBe([]);
+        expect($data)->toBe([]);
     });
 
     it('handles header only sheet', function () {
@@ -168,11 +170,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['Name', 'Age'],
-        ]);
+        expect($headers)->toBe(['Name', 'Age']);
+        expect($data)->toBe([]);
     });
 
     it('preserves numeric values', function () {
@@ -184,11 +185,11 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1][1])->toBe(25);
-        expect($result[1][2])->toBe(50000.50);
-        expect($result[2][2])->toBe(75000);
+        expect($data[0][1])->toBe(25);
+        expect($data[0][2])->toBe(50000.50);
+        expect($data[1][2])->toBe(75000);
     });
 
     it('handles null values', function () {
@@ -200,10 +201,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1][1])->toBeNull();
-        expect($result[2][0])->toBeNull();
+        expect($data[0][1])->toBeNull();
+        expect($data[1][0])->toBeNull();
     });
 
     it('handles boolean values', function () {
@@ -215,10 +216,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1][1])->toBe(true);
-        expect($result[2][1])->toBe(false);
+        expect($data[0][1])->toBe(true);
+        expect($data[1][1])->toBe(false);
     });
 
     it('can extract specific sheet by name', function () {
@@ -235,10 +236,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath, 'Sheet2');
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['Name'],
+        expect($headers)->toBe(['Name']);
+        expect($data)->toBe([
             ['Bob'],
         ]);
     });
@@ -257,10 +258,10 @@ describe('ExcelExtractor', function () {
         ]);
 
         $extractor = new ExcelExtractor($filePath, 1); // Second sheet (0-indexed)
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['Name'],
+        expect($headers)->toBe(['Name']);
+        expect($data)->toBe([
             ['Bob'],
         ]);
     });
@@ -286,9 +287,9 @@ describe('ExcelExtractor', function () {
         ($this->createExcelWithFormulas)($filePath);
 
         $extractor = new ExcelExtractor($filePath);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
         // Formula in cell should be evaluated to its result
-        expect($result[1][2])->toBe(15); // A1 + B1 = 10 + 5 = 15
+        expect($data[0][2])->toBe(15); // A1 + B1 = 10 + 5 = 15
     });
 });

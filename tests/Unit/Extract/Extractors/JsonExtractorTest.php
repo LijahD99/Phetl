@@ -45,12 +45,12 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, $json);
 
         $extractor = new JsonExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertCount(3, $result);
-        $this->assertEquals(['name', 'age'], $result[0]);
-        $this->assertEquals(['Alice', 30], $result[1]);
-        $this->assertEquals(['Bob', 25], $result[2]);
+        $this->assertEquals(['name', 'age'], $headers);
+        $this->assertCount(2, $data);
+        $this->assertEquals(['Alice', 30], $data[0]);
+        $this->assertEquals(['Bob', 25], $data[1]);
     }
 
     public function test_it_validates_file_exists(): void
@@ -88,7 +88,7 @@ final class JsonExtractorTest extends TestCase
         $this->expectExceptionMessage('Invalid JSON in file');
 
         $extractor = new JsonExtractor($this->testFile);
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     }
 
     public function test_it_validates_json_is_array(): void
@@ -99,7 +99,7 @@ final class JsonExtractorTest extends TestCase
         $this->expectExceptionMessage('JSON file must contain an array of objects');
 
         $extractor = new JsonExtractor($this->testFile);
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     }
 
     public function test_it_yields_rows_lazily(): void
@@ -110,9 +110,10 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, $json);
 
         $extractor = new JsonExtractor($this->testFile);
-        $iterator = $extractor->extract();
+        $result = $extractor->extract();
 
-        $this->assertInstanceOf(\Generator::class, $iterator);
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
     }
 
     public function test_it_handles_empty_array(): void
@@ -120,9 +121,10 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, '[]');
 
         $extractor = new JsonExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertCount(0, $result);
+        $this->assertCount(0, $headers);
+        $this->assertCount(0, $data);
     }
 
     public function test_it_can_be_iterated_multiple_times(): void
@@ -134,8 +136,8 @@ final class JsonExtractorTest extends TestCase
 
         $extractor = new JsonExtractor($this->testFile);
 
-        $result1 = iterator_to_array($extractor->extract());
-        $result2 = iterator_to_array($extractor->extract());
+        $result1 = $extractor->extract();
+        $result2 = $extractor->extract();
 
         $this->assertEquals($result1, $result2);
     }
@@ -150,13 +152,13 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, $json);
 
         $extractor = new JsonExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
         // Header should contain all unique fields
-        $this->assertCount(4, $result);
-        $this->assertContains('name', $result[0]);
-        $this->assertContains('age', $result[0]);
-        $this->assertContains('city', $result[0]);
+        $this->assertCount(3, $data);
+        $this->assertContains('name', $headers);
+        $this->assertContains('age', $headers);
+        $this->assertContains('city', $headers);
     }
 
     public function test_it_preserves_nested_structures(): void
@@ -183,10 +185,10 @@ final class JsonExtractorTest extends TestCase
         file_put_contents($this->testFile, $json);
 
         $extractor = new JsonExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
         // All rows should be numerically indexed arrays
-        $this->assertIsArray($result[0]);
-        $this->assertArrayHasKey(0, $result[0]);
+        $this->assertIsArray($headers);
+        $this->assertArrayHasKey(0, $headers);
     }
 }

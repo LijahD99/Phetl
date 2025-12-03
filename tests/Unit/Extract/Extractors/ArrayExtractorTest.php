@@ -31,18 +31,18 @@ final class ArrayExtractorTest extends TestCase
         ];
 
         $extractor = new ArrayExtractor($data);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $dataRows] = $extractor->extract();
 
-        $this->assertCount(3, $result);
-        $this->assertEquals(['name', 'age'], $result[0]);
-        $this->assertEquals(['Alice', 30], $result[1]);
-        $this->assertEquals(['Bob', 25], $result[2]);
+        $this->assertEquals(['name', 'age'], $headers);
+        $this->assertCount(2, $dataRows);
+        $this->assertEquals(['Alice', 30], $dataRows[0]);
+        $this->assertEquals(['Bob', 25], $dataRows[1]);
     }
 
     public function test_it_validates_non_empty_data(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Data array must contain at least a header row');
+        $this->expectExceptionMessage('Data array must contain at least a header row when headers are not provided');
 
         new ArrayExtractor([]);
     }
@@ -57,10 +57,14 @@ final class ArrayExtractorTest extends TestCase
         ];
 
         $extractor = new ArrayExtractor($data);
-        $iterator = $extractor->extract();
+        $result = $extractor->extract();
 
-        // Should be a Generator (lazy)
-        $this->assertInstanceOf(\Generator::class, $iterator);
+        // Should return a tuple [headers, data]
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        [$headers, $dataRows] = $result;
+        $this->assertEquals(['name', 'age'], $headers);
+        $this->assertCount(3, $dataRows);
     }
 
     public function test_it_can_be_iterated_multiple_times(): void
@@ -72,14 +76,17 @@ final class ArrayExtractorTest extends TestCase
 
         $extractor = new ArrayExtractor($data);
 
-        // First iteration
-        $result1 = iterator_to_array($extractor->extract());
-        $this->assertCount(2, $result1);
+        // First extraction
+        [$headers1, $data1] = $extractor->extract();
+        $this->assertEquals(['name', 'age'], $headers1);
+        $this->assertCount(1, $data1);
 
-        // Second iteration (should work independently)
-        $result2 = iterator_to_array($extractor->extract());
-        $this->assertCount(2, $result2);
-        $this->assertEquals($result1, $result2);
+        // Second extraction (should work independently)
+        [$headers2, $data2] = $extractor->extract();
+        $this->assertEquals(['name', 'age'], $headers2);
+        $this->assertCount(1, $data2);
+        $this->assertEquals($headers1, $headers2);
+        $this->assertEquals($data1, $data2);
     }
 
     public function test_it_handles_single_header_row(): void
@@ -89,10 +96,10 @@ final class ArrayExtractorTest extends TestCase
         ];
 
         $extractor = new ArrayExtractor($data);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $dataRows] = $extractor->extract();
 
-        $this->assertCount(1, $result);
-        $this->assertEquals(['name', 'age', 'city'], $result[0]);
+        $this->assertEquals(['name', 'age', 'city'], $headers);
+        $this->assertCount(0, $dataRows); // Only header, no data rows
     }
 
     public function test_it_preserves_row_structure(): void
@@ -104,9 +111,10 @@ final class ArrayExtractorTest extends TestCase
         ];
 
         $extractor = new ArrayExtractor($data);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $dataRows] = $extractor->extract();
 
-        $this->assertIsArray($result[1][2]);
-        $this->assertEquals(['role' => 'admin'], $result[1][2]);
+        $this->assertEquals(['name', 'age', 'metadata'], $headers);
+        $this->assertIsArray($dataRows[0][2]);
+        $this->assertEquals(['role' => 'admin'], $dataRows[0][2]);
     }
 }

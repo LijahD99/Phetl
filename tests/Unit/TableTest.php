@@ -144,10 +144,11 @@ class TableTest extends TestCase
         $table = Table::fromArray($data);
 
         $result = $table->look(3);
-        $this->assertCount(3, $result);
+        $this->assertCount(4, $result); // Header + 3 data rows
         $this->assertEquals(['name', 'age'], $result[0]);
         $this->assertEquals(['Alice', 30], $result[1]);
         $this->assertEquals(['Bob', 25], $result[2]);
+        $this->assertEquals(['Charlie', 35], $result[3]);
     }
 
     public function test_it_counts_rows(): void
@@ -160,7 +161,7 @@ class TableTest extends TestCase
 
         $table = Table::fromArray($data);
 
-        $this->assertEquals(3, $table->count());
+        $this->assertEquals(2, $table->count()); // Excludes header
     }
 
     public function test_it_gets_header(): void

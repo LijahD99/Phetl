@@ -8,33 +8,31 @@ use Phetl\Transform\Values\StringTransformer;
 describe('StringTransformer', function () {
     describe('upper()', function () {
         it('converts field to uppercase', function () {
+            $headers = ['name', 'city'];
             $data = [
-                ['name', 'city'],
                 ['alice', 'new york'],
                 ['bob', 'los angeles'],
             ];
 
-            $result = iterator_to_array(StringTransformer::upper($data, 'name'));
+            [$resultHeaders, $resultData] = StringTransformer::upper($headers, $data, 'name');
 
-            expect($result)->toBe([
-                ['name', 'city'],
+            expect($resultData)->toBe([
                 ['ALICE', 'new york'],
                 ['BOB', 'los angeles'],
             ]);
         });
 
         it('handles null values', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
                 [null],
                 ['bob'],
             ];
 
-            $result = iterator_to_array(StringTransformer::upper($data, 'name'));
+            [$resultHeaders, $resultData] = StringTransformer::upper($headers, $data, 'name');
 
-            expect($result)->toBe([
-                ['name'],
+            expect($resultData)->toBe([
                 ['ALICE'],
                 [null],
                 ['BOB'],

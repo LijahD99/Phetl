@@ -36,10 +36,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse, // Special key for testing
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name', 'email'],
+        expect($headers)->toBe(['id', 'name', 'email']);
+        expect($data)->toBe([
             [1, 'Alice', 'alice@example.com'],
             [2, 'Bob', 'bob@example.com'],
             [3, 'Charlie', 'charlie@example.com'],
@@ -51,9 +51,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => json_encode([]),
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([]);
+        expect($headers)->toBe([]);
+        expect($data)->toBe([]);
     });
 
     it('handles inconsistent fields across objects', function () {
@@ -67,10 +68,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name', 'email'],
+        expect($headers)->toBe(['id', 'name', 'email']);
+        expect($data)->toBe([
             [1, 'Alice', null],
             [2, 'Bob', 'bob@example.com'],
             [3, null, 'charlie@example.com'],
@@ -82,7 +83,7 @@ describe('RestApiExtractor', function () {
             '_mock_response' => 'not valid json',
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     })->throws(InvalidArgumentException::class, 'Invalid JSON');
 
     it('throws exception for non-array json', function () {
@@ -90,7 +91,7 @@ describe('RestApiExtractor', function () {
             '_mock_response' => json_encode('string value'),
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     })->throws(InvalidArgumentException::class, 'Response must be a JSON array');
 
     it('throws exception for array of non-objects', function () {
@@ -98,7 +99,7 @@ describe('RestApiExtractor', function () {
             '_mock_response' => json_encode(['string', 'values']),
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     })->throws(InvalidArgumentException::class, 'Response must contain objects');
 
     it('throws exception for http error status', function () {
@@ -107,7 +108,7 @@ describe('RestApiExtractor', function () {
             '_mock_status' => 404,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
     })->throws(RuntimeException::class, 'HTTP error 404');
 
     it('can be iterated multiple times', function () {
@@ -120,8 +121,8 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse,
         ]);
 
-        $first = iterator_to_array($extractor->extract());
-        $second = iterator_to_array($extractor->extract());
+        $first = $extractor->extract();
+        $second = $extractor->extract();
 
         expect($first)->toBe($second);
     });
@@ -136,10 +137,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1])->toBe([1, 30, 95.5]);
-        expect($result[2])->toBe([2, 25, 87.3]);
+        expect($data[0])->toBe([1, 30, 95.5]);
+        expect($data[1])->toBe([2, 25, 87.3]);
     });
 
     it('handles null values', function () {
@@ -152,10 +153,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1])->toBe([1, 'Alice', null]);
-        expect($result[2])->toBe([2, null, 'bob@example.com']);
+        expect($data[0])->toBe([1, 'Alice', null]);
+        expect($data[1])->toBe([2, null, 'bob@example.com']);
     });
 
     it('handles boolean values', function () {
@@ -168,10 +169,10 @@ describe('RestApiExtractor', function () {
             '_mock_response' => $mockResponse,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1])->toBe([1, true, false]);
-        expect($result[2])->toBe([2, false, true]);
+        expect($data[0])->toBe([1, true, false]);
+        expect($data[1])->toBe([2, false, true]);
     });
 });
 
@@ -190,7 +191,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_headers' => true, // Special flag to capture headers
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $headers = $extractor->getCapturedHeaders();
 
         expect($headers)->toHaveKey('Authorization');
@@ -213,7 +214,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_headers' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $headers = $extractor->getCapturedHeaders();
 
         expect($headers)->toHaveKey('X-API-Key');
@@ -235,7 +236,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_headers' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $headers = $extractor->getCapturedHeaders();
 
         expect($headers)->toHaveKey('X-API-Key');
@@ -258,7 +259,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_url' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $url = $extractor->getCapturedUrl();
 
         expect($url)->toContain('api_key=query-key-123');
@@ -279,7 +280,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_url' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $url = $extractor->getCapturedUrl();
 
         expect($url)->toContain('api_key=query-key-456');
@@ -300,7 +301,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_headers' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $headers = $extractor->getCapturedHeaders();
 
         expect($headers)->toHaveKey('Authorization');
@@ -317,7 +318,7 @@ describe('RestApiExtractor - Authentication', function () {
             '_capture_headers' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $headers = $extractor->getCapturedHeaders();
 
         expect($headers)->not->toHaveKey('Authorization');
@@ -392,10 +393,10 @@ describe('RestApiExtractor - Pagination', function () {
             '_capture_urls' => true,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
             [3, 'Charlie'],
@@ -435,10 +436,10 @@ describe('RestApiExtractor - Pagination', function () {
             '_capture_urls' => true,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
             [3, 'Charlie'],
@@ -470,10 +471,10 @@ describe('RestApiExtractor - Pagination', function () {
             '_capture_urls' => true,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
             [3, 'Charlie'],
@@ -503,11 +504,11 @@ describe('RestApiExtractor - Pagination', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
         // Should only get first page
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
         ]);
     });
@@ -522,10 +523,10 @@ describe('RestApiExtractor - Pagination', function () {
             '_mock_response' => $response,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
         ]);
@@ -544,7 +545,7 @@ describe('RestApiExtractor - Pagination', function () {
             '_capture_urls' => true,
         ]);
 
-        iterator_to_array($extractor->extract());
+        $extractor->extract();
         $urls = $extractor->getCapturedUrls();
 
         expect($urls[0])->toContain('offset=');
@@ -569,10 +570,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
         ]);
@@ -595,10 +596,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
         ]);
@@ -629,10 +630,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name', 'email'],
+        expect($headers)->toBe(['id', 'name', 'email']);
+        expect($data)->toBe([
             [1, 'Alice Smith', 'alice@example.com'],
             [2, 'Bob Jones', 'bob@example.com'],
         ]);
@@ -661,10 +662,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name', 'email'],
+        expect($headers)->toBe(['id', 'name', 'email']);
+        expect($data)->toBe([
             [1, 'Alice Smith', null],
             [2, null, 'bob@example.com'],
         ]);
@@ -695,10 +696,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
             [2, 'Bob'],
         ]);
@@ -713,10 +714,10 @@ describe('RestApiExtractor - Response Mapping', function () {
             '_mock_response' => $response,
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result)->toBe([
-            ['id', 'name'],
+        expect($headers)->toBe(['id', 'name']);
+        expect($data)->toBe([
             [1, 'Alice'],
         ]);
     });
@@ -739,8 +740,8 @@ describe('RestApiExtractor - Response Mapping', function () {
             ],
         ]);
 
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        expect($result[1][1])->toBe(['php', 'laravel']);
+        expect($data[0][1])->toBe(['php', 'laravel']);
     });
 });

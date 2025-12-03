@@ -42,12 +42,12 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, $csvContent);
 
         $extractor = new CsvExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertCount(3, $result);
-        $this->assertEquals(['name', 'age', 'city'], $result[0]);
-        $this->assertEquals(['Alice', '30', 'NYC'], $result[1]);
-        $this->assertEquals(['Bob', '25', 'LA'], $result[2]);
+        $this->assertEquals(['name', 'age', 'city'], $headers);
+        $this->assertCount(2, $data);
+        $this->assertEquals(['Alice', '30', 'NYC'], $data[0]);
+        $this->assertEquals(['Bob', '25', 'LA'], $data[1]);
     }
 
     public function test_it_validates_file_exists(): void
@@ -84,9 +84,13 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "name,age\nAlice,30\nBob,25");
 
         $extractor = new CsvExtractor($this->testFile);
-        $iterator = $extractor->extract();
+        $result = $extractor->extract();
 
-        $this->assertInstanceOf(\Generator::class, $iterator);
+        $this->assertIsArray($result);
+        $this->assertCount(2, $result);
+        [$headers, $data] = $result;
+        $this->assertEquals(['name', 'age'], $headers);
+        $this->assertCount(2, $data);
     }
 
     public function test_it_handles_custom_delimiter(): void
@@ -94,10 +98,10 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "name;age;city\nAlice;30;NYC");
 
         $extractor = new CsvExtractor($this->testFile, delimiter: ';');
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'age', 'city'], $result[0]);
-        $this->assertEquals(['Alice', '30', 'NYC'], $result[1]);
+        $this->assertEquals(['name', 'age', 'city'], $headers);
+        $this->assertEquals(['Alice', '30', 'NYC'], $data[0]);
     }
 
     public function test_it_handles_custom_enclosure(): void
@@ -105,10 +109,10 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "'name','age'\n'Alice','30'");
 
         $extractor = new CsvExtractor($this->testFile, enclosure: "'");
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'age'], $result[0]);
-        $this->assertEquals(['Alice', '30'], $result[1]);
+        $this->assertEquals(['name', 'age'], $headers);
+        $this->assertEquals(['Alice', '30'], $data[0]);
     }
 
     public function test_it_handles_custom_escape(): void
@@ -117,11 +121,11 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "name,value\n\"John\",\"He said \\\"hi\\\"\"");
 
         $extractor = new CsvExtractor($this->testFile, escape: '\\');
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'value'], $result[0]);
-        // Note: fgetcsv preserves the escape character in the output
-        $this->assertEquals(['John', 'He said \"hi\"'], $result[1]);
+        $this->assertEquals(['name', 'value'], $headers);
+        // Note: fgetcsv escapes quotes with backslash
+        $this->assertEquals(['John', 'He said \"hi\"'], $data[0]);
     }
 
     public function test_it_handles_empty_file(): void
@@ -129,9 +133,10 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, '');
 
         $extractor = new CsvExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertCount(0, $result);
+        $this->assertCount(0, $headers);
+        $this->assertCount(0, $data);
     }
 
     public function test_it_handles_header_only_file(): void
@@ -139,10 +144,10 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, 'name,age,city');
 
         $extractor = new CsvExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertCount(1, $result);
-        $this->assertEquals(['name', 'age', 'city'], $result[0]);
+        $this->assertEquals(['name', 'age', 'city'], $headers);
+        $this->assertCount(0, $data); // Header only, no data rows
     }
 
     public function test_it_can_be_iterated_multiple_times(): void
@@ -151,10 +156,11 @@ final class CsvExtractorTest extends TestCase
 
         $extractor = new CsvExtractor($this->testFile);
 
-        $result1 = iterator_to_array($extractor->extract());
-        $result2 = iterator_to_array($extractor->extract());
+        [$headers1, $data1] = $extractor->extract();
+        [$headers2, $data2] = $extractor->extract();
 
-        $this->assertEquals($result1, $result2);
+        $this->assertEquals($headers1, $headers2);
+        $this->assertEquals($data1, $data2);
     }
 
     public function test_it_handles_quoted_fields_with_commas(): void
@@ -162,10 +168,10 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "name,location\n\"Smith, John\",\"NYC, NY\"");
 
         $extractor = new CsvExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'location'], $result[0]);
-        $this->assertEquals(['Smith, John', 'NYC, NY'], $result[1]);
+        $this->assertEquals(['name', 'location'], $headers);
+        $this->assertEquals(['Smith, John', 'NYC, NY'], $data[0]);
     }
 
     public function test_it_handles_multiline_quoted_fields(): void
@@ -173,9 +179,9 @@ final class CsvExtractorTest extends TestCase
         file_put_contents($this->testFile, "name,bio\n\"Alice\",\"Line 1\nLine 2\"");
 
         $extractor = new CsvExtractor($this->testFile);
-        $result = iterator_to_array($extractor->extract());
+        [$headers, $data] = $extractor->extract();
 
-        $this->assertEquals(['name', 'bio'], $result[0]);
-        $this->assertEquals(['Alice', "Line 1\nLine 2"], $result[1]);
+        $this->assertEquals(['name', 'bio'], $headers);
+        $this->assertEquals(['Alice', "Line 1\nLine 2"], $data[0]);
     }
 }
