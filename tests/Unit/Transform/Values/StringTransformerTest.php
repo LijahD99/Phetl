@@ -42,15 +42,16 @@ describe('StringTransformer', function () {
 
     describe('lower()', function () {
         it('converts field to lowercase', function () {
+            $headers = ['name', 'city'];
             $data = [
-                ['name', 'city'],
                 ['ALICE', 'NEW YORK'],
                 ['BOB', 'LOS ANGELES'],
             ];
 
-            $result = iterator_to_array(StringTransformer::lower($data, 'name'));
+            [$resHeaders, $resData] = StringTransformer::lower($headers, $data, 'name');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name', 'city'],
                 ['alice', 'NEW YORK'],
                 ['bob', 'LOS ANGELES'],
@@ -60,15 +61,16 @@ describe('StringTransformer', function () {
 
     describe('trim()', function () {
         it('removes whitespace from field', function () {
+            $headers = ['name', 'city'];
             $data = [
-                ['name', 'city'],
                 ['  alice  ', ' new york'],
                 ['bob  ', '  los angeles  '],
             ];
 
-            $result = iterator_to_array(StringTransformer::trim($data, 'name'));
+            [$resHeaders, $resData] = StringTransformer::trim($headers, $data, 'name');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name', 'city'],
                 ['alice', ' new york'],
                 ['bob', '  los angeles  '],
@@ -76,15 +78,16 @@ describe('StringTransformer', function () {
         });
 
         it('trims custom characters', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['__alice__'],
                 ['__bob__'],
             ];
 
-            $result = iterator_to_array(StringTransformer::trim($data, 'name', '_'));
+            [$resHeaders, $resData] = StringTransformer::trim($headers, $data, 'name', '_');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['alice'],
                 ['bob'],
@@ -94,15 +97,16 @@ describe('StringTransformer', function () {
 
     describe('ltrim()', function () {
         it('removes left whitespace', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['  alice'],
                 ['  bob  '],
             ];
 
-            $result = iterator_to_array(StringTransformer::ltrim($data, 'name'));
+            [$resHeaders, $resData] = StringTransformer::ltrim($headers, $data, 'name');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['alice'],
                 ['bob  '],
@@ -112,15 +116,16 @@ describe('StringTransformer', function () {
 
     describe('rtrim()', function () {
         it('removes right whitespace', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice  '],
                 ['  bob  '],
             ];
 
-            $result = iterator_to_array(StringTransformer::rtrim($data, 'name'));
+            [$resHeaders, $resData] = StringTransformer::rtrim($headers, $data, 'name');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['alice'],
                 ['  bob'],
@@ -130,16 +135,17 @@ describe('StringTransformer', function () {
 
     describe('substring()', function () {
         it('extracts substring from field', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
                 ['bob'],
                 ['charlie'],
             ];
 
-            $result = iterator_to_array(StringTransformer::substring($data, 'name', 0, 3));
+            [$resHeaders, $resData] = StringTransformer::substring($headers, $data, 'name', 0, 3);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['ali'],
                 ['bob'],
@@ -148,15 +154,16 @@ describe('StringTransformer', function () {
         });
 
         it('extracts substring without length', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
                 ['bob'],
             ];
 
-            $result = iterator_to_array(StringTransformer::substring($data, 'name', 2));
+            [$resHeaders, $resData] = StringTransformer::substring($headers, $data, 'name', 2);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['ice'],
                 ['b'],
@@ -166,15 +173,16 @@ describe('StringTransformer', function () {
 
     describe('left()', function () {
         it('extracts leftmost characters', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
                 ['bob'],
             ];
 
-            $result = iterator_to_array(StringTransformer::left($data, 'name', 3));
+            [$resHeaders, $resData] = StringTransformer::left($headers, $data, 'name', 3);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['ali'],
                 ['bob'],
@@ -184,15 +192,16 @@ describe('StringTransformer', function () {
 
     describe('right()', function () {
         it('extracts rightmost characters', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
                 ['bob'],
             ];
 
-            $result = iterator_to_array(StringTransformer::right($data, 'name', 3));
+            [$resHeaders, $resData] = StringTransformer::right($headers, $data, 'name', 3);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['ice'],
                 ['bob'],
@@ -202,16 +211,17 @@ describe('StringTransformer', function () {
 
     describe('pad()', function () {
         it('pads string to specified length', function () {
+            $headers = ['code'];
             $data = [
-                ['code'],
                 ['1'],
                 ['42'],
                 ['123'],
             ];
 
-            $result = iterator_to_array(StringTransformer::pad($data, 'code', 5, '0', STR_PAD_LEFT));
+            [$resHeaders, $resData] = StringTransformer::pad($headers, $data, 'code', 5, '0', STR_PAD_LEFT);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['code'],
                 ['00001'],
                 ['00042'],
@@ -220,14 +230,15 @@ describe('StringTransformer', function () {
         });
 
         it('pads string on right by default', function () {
+            $headers = ['name'];
             $data = [
-                ['name'],
                 ['alice'],
             ];
 
-            $result = iterator_to_array(StringTransformer::pad($data, 'name', 10, '_'));
+            [$resHeaders, $resData] = StringTransformer::pad($headers, $data, 'name', 10, '_');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name'],
                 ['alice_____'],
             ]);
@@ -236,15 +247,16 @@ describe('StringTransformer', function () {
 
     describe('concat()', function () {
         it('concatenates multiple fields', function () {
+            $headers = ['first', 'last', 'full'];
             $data = [
-                ['first', 'last', 'full'],
                 ['Alice', 'Smith', null],
                 ['Bob', 'Jones', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::concat($data, 'full', ['first', 'last'], ' '));
+            [$resHeaders, $resData] = StringTransformer::concat($headers, $data, 'full', ['first', 'last'], ' ');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['first', 'last', 'full'],
                 ['Alice', 'Smith', 'Alice Smith'],
                 ['Bob', 'Jones', 'Bob Jones'],
@@ -252,14 +264,15 @@ describe('StringTransformer', function () {
         });
 
         it('concatenates without separator', function () {
+            $headers = ['a', 'b', 'c', 'result'];
             $data = [
-                ['a', 'b', 'c', 'result'],
                 ['X', 'Y', 'Z', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::concat($data, 'result', ['a', 'b', 'c']));
+            [$resHeaders, $resData] = StringTransformer::concat($headers, $data, 'result', ['a', 'b', 'c']);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['a', 'b', 'c', 'result'],
                 ['X', 'Y', 'Z', 'XYZ'],
             ]);
@@ -268,15 +281,16 @@ describe('StringTransformer', function () {
 
     describe('split()', function () {
         it('splits field into array', function () {
+            $headers = ['tags'];
             $data = [
-                ['tags'],
                 ['php,python,javascript'],
                 ['ruby,go'],
             ];
 
-            $result = iterator_to_array(StringTransformer::split($data, 'tags', ','));
+            [$resHeaders, $resData] = StringTransformer::split($headers, $data, 'tags', ',');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['tags'],
                 [['php', 'python', 'javascript']],
                 [['ruby', 'go']],
@@ -284,14 +298,15 @@ describe('StringTransformer', function () {
         });
 
         it('limits split results', function () {
+            $headers = ['path'];
             $data = [
-                ['path'],
                 ['a/b/c/d'],
             ];
 
-            $result = iterator_to_array(StringTransformer::split($data, 'path', '/', 2));
+            [$resHeaders, $resData] = StringTransformer::split($headers, $data, 'path', '/', 2);
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['path'],
                 [['a', 'b/c/d']],
             ]);
@@ -300,15 +315,16 @@ describe('StringTransformer', function () {
 
     describe('replace()', function () {
         it('replaces substring with regex', function () {
+            $headers = ['text'];
             $data = [
-                ['text'],
                 ['hello world'],
                 ['goodbye world'],
             ];
 
-            $result = iterator_to_array(StringTransformer::replace($data, 'text', '/world/', 'universe'));
+            [$resHeaders, $resData] = StringTransformer::replace($headers, $data, 'text', '/world/', 'universe');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['text'],
                 ['hello universe'],
                 ['goodbye universe'],
@@ -316,14 +332,15 @@ describe('StringTransformer', function () {
         });
 
         it('replaces multiple occurrences', function () {
+            $headers = ['text'];
             $data = [
-                ['text'],
                 ['the cat and the dog'],
             ];
 
-            $result = iterator_to_array(StringTransformer::replace($data, 'text', '/the/', 'a'));
+            [$resHeaders, $resData] = StringTransformer::replace($headers, $data, 'text', '/the/', 'a');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['text'],
                 ['a cat and a dog'],
             ]);
@@ -332,15 +349,16 @@ describe('StringTransformer', function () {
 
     describe('extract()', function () {
         it('extracts pattern from field', function () {
+            $headers = ['email', 'domain'];
             $data = [
-                ['email', 'domain'],
                 ['alice@example.com', null],
                 ['bob@test.org', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::extract($data, 'email', 'domain', '/@(.+)$/'));
+            [$resHeaders, $resData] = StringTransformer::extract($headers, $data, 'email', 'domain', '/@(.+)$/');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['email', 'domain'],
                 ['alice@example.com', 'example.com'],
                 ['bob@test.org', 'test.org'],
@@ -348,15 +366,16 @@ describe('StringTransformer', function () {
         });
 
         it('returns null when no match', function () {
+            $headers = ['text', 'number'];
             $data = [
-                ['text', 'number'],
                 ['no numbers here', null],
                 ['has 123 numbers', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::extract($data, 'text', 'number', '/(\d+)/'));
+            [$resHeaders, $resData] = StringTransformer::extract($headers, $data, 'text', 'number', '/(\d+)/');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['text', 'number'],
                 ['no numbers here', null],
                 ['has 123 numbers', '123'],
@@ -366,16 +385,17 @@ describe('StringTransformer', function () {
 
     describe('match()', function () {
         it('checks if field matches pattern', function () {
+            $headers = ['email', 'valid'];
             $data = [
-                ['email', 'valid'],
                 ['alice@example.com', null],
                 ['invalid-email', null],
                 ['bob@test.org', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::match($data, 'email', 'valid', '/^[a-z]+@[a-z]+\.[a-z]+$/'));
+            [$resHeaders, $resData] = StringTransformer::match($headers, $data, 'email', 'valid', '/^[a-z]+@[a-z]+\.[a-z]+$/');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['email', 'valid'],
                 ['alice@example.com', true],
                 ['invalid-email', false],
@@ -386,16 +406,17 @@ describe('StringTransformer', function () {
 
     describe('length()', function () {
         it('calculates field length', function () {
+            $headers = ['name', 'length'];
             $data = [
-                ['name', 'length'],
                 ['alice', null],
                 ['bob', null],
                 ['charlie', null],
             ];
 
-            $result = iterator_to_array(StringTransformer::length($data, 'name', 'length'));
+            [$resHeaders, $resData] = StringTransformer::length($headers, $data, 'name', 'length');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name', 'length'],
                 ['alice', 5],
                 ['bob', 3],
@@ -404,15 +425,16 @@ describe('StringTransformer', function () {
         });
 
         it('handles null values', function () {
+            $headers = ['name', 'length'];
             $data = [
-                ['name', 'length'],
                 ['alice', null],
                 [null, null],
             ];
 
-            $result = iterator_to_array(StringTransformer::length($data, 'name', 'length'));
+            [$resHeaders, $resData] = StringTransformer::length($headers, $data, 'name', 'length');
 
-            expect($result)->toBe([
+            $full = array_merge([$resHeaders], $resData);
+            expect($full)->toBe([
                 ['name', 'length'],
                 ['alice', 5],
                 [null, 0],

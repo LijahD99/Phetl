@@ -7,6 +7,11 @@ namespace Phetl\Tests\Unit\Transform\Set;
 use InvalidArgumentException;
 use Phetl\Transform\Set\SetOperation;
 
+function splitTable(array $table): array
+{
+    return [$table[0], array_slice($table, 1)];
+}
+
 beforeEach(function (): void {
     $this->table1 = [
         ['id', 'name'],
@@ -32,22 +37,28 @@ beforeEach(function (): void {
 // ====================
 
 test('concat combines tables vertically', function (): void {
-    $result = iterator_to_array(SetOperation::concat($this->table1, $this->table2));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h2, $d2] = splitTable($this->table2);
 
-    expect($result)->toHaveCount(5) // header + 4 rows
-        ->and($result[0])->toBe(['id', 'name'])
-        ->and($result[1])->toBe([1, 'Alice'])
-        ->and($result[2])->toBe([2, 'Bob'])
-        ->and($result[3])->toBe([3, 'Charlie'])
-        ->and($result[4])->toBe([4, 'Diana']);
+    [$headers, $data] = SetOperation::concat([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name']);
+    expect($data)->toHaveCount(4)
+        ->and($data[0])->toBe([1, 'Alice'])
+        ->and($data[1])->toBe([2, 'Bob'])
+        ->and($data[2])->toBe([3, 'Charlie'])
+        ->and($data[3])->toBe([4, 'Diana']);
 });
 
 test('concat preserves duplicates', function (): void {
-    $result = iterator_to_array(SetOperation::concat($this->table1, $this->table3));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h3, $d3] = splitTable($this->table3);
 
-    expect($result)->toHaveCount(5) // header + 4 rows (including duplicate)
-        ->and($result[1])->toBe([1, 'Alice'])
-        ->and($result[3])->toBe([1, 'Alice']); // Duplicate preserved
+    [$headers, $data] = SetOperation::concat([$h1, $d1], [$h3, $d3]);
+
+    expect($data)->toHaveCount(4)
+        ->and($data[0])->toBe([1, 'Alice'])
+        ->and($data[2])->toBe([1, 'Alice']); // Duplicate preserved
 });
 
 test('concat throws exception for mismatched headers', function (): void {
@@ -56,23 +67,32 @@ test('concat throws exception for mismatched headers', function (): void {
         [1, 30],
     ];
 
-    iterator_to_array(SetOperation::concat($this->table1, $differentHeader));
+    [$h1, $d1] = splitTable($this->table1);
+    [$hd, $dd] = splitTable($differentHeader);
+
+    SetOperation::concat([$h1, $d1], [$hd, $dd]);
 })->throws(InvalidArgumentException::class, "different header structure");
 
 test('concat handles single table', function (): void {
-    $result = iterator_to_array(SetOperation::concat($this->table1));
+    [$h1, $d1] = splitTable($this->table1);
 
-    expect($result)->toBe($this->table1);
+    [$headers, $data] = SetOperation::concat([$h1, $d1]);
+
+    expect($headers)->toBe($h1);
+    expect($data)->toBe($d1);
 });
 
 test('concat handles empty tables', function (): void {
     $empty1 = [['id', 'name']];
     $empty2 = [['id', 'name']];
 
-    $result = iterator_to_array(SetOperation::concat($empty1, $empty2));
+    [$h1, $d1] = splitTable($empty1);
+    [$h2, $d2] = splitTable($empty2);
 
-    expect($result)->toHaveCount(1)
-        ->and($result[0])->toBe(['id', 'name']);
+    [$headers, $data] = SetOperation::concat([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name']);
+    expect($data)->toHaveCount(0);
 });
 
 test('concat handles multiple tables', function (): void {
@@ -81,15 +101,20 @@ test('concat handles multiple tables', function (): void {
         [5, 'Eve'],
     ];
 
-    $result = iterator_to_array(SetOperation::concat($this->table1, $this->table2, $table3));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h2, $d2] = splitTable($this->table2);
+    [$h3, $d3] = splitTable($table3);
 
-    expect($result)->toHaveCount(6); // header + 5 rows
+    [$headers, $data] = SetOperation::concat([$h1, $d1], [$h2, $d2], [$h3, $d3]);
+
+    expect($data)->toHaveCount(5); // 5 rows
 });
 
 test('concat with no tables returns empty', function (): void {
-    $result = iterator_to_array(SetOperation::concat());
+    [$headers, $data] = SetOperation::concat();
 
-    expect($result)->toBeEmpty();
+    expect($headers)->toBeEmpty();
+    expect($data)->toBeEmpty();
 });
 
 // ====================
@@ -97,19 +122,25 @@ test('concat with no tables returns empty', function (): void {
 // ====================
 
 test('union removes duplicates', function (): void {
-    $result = iterator_to_array(SetOperation::union($this->table1, $this->table3));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h3, $d3] = splitTable($this->table3);
 
-    expect($result)->toHaveCount(4) // header + 3 unique rows
-        ->and($result[0])->toBe(['id', 'name'])
-        ->and($result[1])->toBe([1, 'Alice'])
-        ->and($result[2])->toBe([2, 'Bob'])
-        ->and($result[3])->toBe([5, 'Eve']);
+    [$headers, $data] = SetOperation::union([$h1, $d1], [$h3, $d3]);
+
+    expect($headers)->toBe(['id', 'name']);
+    expect($data)->toHaveCount(3)
+        ->and($data[0])->toBe([1, 'Alice'])
+        ->and($data[1])->toBe([2, 'Bob'])
+        ->and($data[2])->toBe([5, 'Eve']);
 });
 
 test('union with no duplicates behaves like concat', function (): void {
-    $result = iterator_to_array(SetOperation::union($this->table1, $this->table2));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h2, $d2] = splitTable($this->table2);
 
-    expect($result)->toHaveCount(5); // header + 4 unique rows
+    [$headers, $data] = SetOperation::union([$h1, $d1], [$h2, $d2]);
+
+    expect($data)->toHaveCount(4); // 4 unique rows
 });
 
 test('union handles complete duplicates', function (): void {
@@ -119,15 +150,21 @@ test('union handles complete duplicates', function (): void {
         [2, 'Bob'],
     ];
 
-    $result = iterator_to_array(SetOperation::union($this->table1, $duplicate));
+    [$h1, $d1] = splitTable($this->table1);
+    [$hd, $dd] = splitTable($duplicate);
 
-    expect($result)->toHaveCount(3); // header + 2 unique rows
+    [$headers, $data] = SetOperation::union([$h1, $d1], [$hd, $dd]);
+
+    expect($data)->toHaveCount(2); // 2 unique rows
 });
 
 test('union handles single table', function (): void {
-    $result = iterator_to_array(SetOperation::union($this->table1));
+    [$h1, $d1] = splitTable($this->table1);
 
-    expect($result)->toBe($this->table1);
+    [$headers, $data] = SetOperation::union([$h1, $d1]);
+
+    expect($headers)->toBe($h1);
+    expect($data)->toBe($d1);
 });
 
 test('union throws exception for mismatched headers', function (): void {
@@ -136,7 +173,10 @@ test('union throws exception for mismatched headers', function (): void {
         [1, 30],
     ];
 
-    iterator_to_array(SetOperation::union($this->table1, $differentHeader));
+    [$h1, $d1] = splitTable($this->table1);
+    [$hd, $dd] = splitTable($differentHeader);
+
+    SetOperation::union([$h1, $d1], [$hd, $dd]);
 })->throws(InvalidArgumentException::class, "different header structure");
 
 // ====================
@@ -156,13 +196,16 @@ test('merge combines tables with different headers', function (): void {
         [3, 35],
     ];
 
-    $result = iterator_to_array(SetOperation::merge($table1, $table2));
+    [$h1, $d1] = splitTable($table1);
+    [$h2, $d2] = splitTable($table2);
 
-    expect($result[0])->toBe(['id', 'name', 'age'])
-        ->and($result[1])->toBe([1, 'Alice', null])
-        ->and($result[2])->toBe([2, 'Bob', null])
-        ->and($result[3])->toBe([1, null, 30])
-        ->and($result[4])->toBe([3, null, 35]);
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name', 'age'])
+        ->and($data[0])->toBe([1, 'Alice', null])
+        ->and($data[1])->toBe([2, 'Bob', null])
+        ->and($data[2])->toBe([1, null, 30])
+        ->and($data[3])->toBe([3, null, 35]);
 });
 
 test('merge fills missing values with null', function (): void {
@@ -176,11 +219,14 @@ test('merge fills missing values with null', function (): void {
         [3, 4],
     ];
 
-    $result = iterator_to_array(SetOperation::merge($table1, $table2));
+    [$h1, $d1] = splitTable($table1);
+    [$h2, $d2] = splitTable($table2);
 
-    expect($result[0])->toBe(['a', 'b', 'c'])
-        ->and($result[1])->toBe([1, 2, null])
-        ->and($result[2])->toBe([null, 3, 4]);
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['a', 'b', 'c'])
+        ->and($data[0])->toBe([1, 2, null])
+        ->and($data[1])->toBe([null, 3, 4]);
 });
 
 test('merge handles overlapping columns', function (): void {
@@ -194,40 +240,53 @@ test('merge handles overlapping columns', function (): void {
         [2, 'NYC'],
     ];
 
-    $result = iterator_to_array(SetOperation::merge($table1, $table2));
+    [$h1, $d1] = splitTable($table1);
+    [$h2, $d2] = splitTable($table2);
 
-    expect($result[0])->toBe(['id', 'name', 'age', 'city'])
-        ->and($result[1])->toBe([1, 'Alice', 30, null])
-        ->and($result[2])->toBe([2, null, null, 'NYC']);
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name', 'age', 'city'])
+        ->and($data[0])->toBe([1, 'Alice', 30, null])
+        ->and($data[1])->toBe([2, null, null, 'NYC']);
 });
 
 test('merge with identical headers behaves like concat', function (): void {
-    $result = iterator_to_array(SetOperation::merge($this->table1, $this->table2));
+    [$h1, $d1] = splitTable($this->table1);
+    [$h2, $d2] = splitTable($this->table2);
 
-    expect($result[0])->toBe(['id', 'name'])
-        ->and($result)->toHaveCount(5); // header + 4 rows
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name'])
+        ->and($data)->toHaveCount(4); // 4 rows
 });
 
 test('merge handles single table', function (): void {
-    $result = iterator_to_array(SetOperation::merge($this->table1));
+    [$h1, $d1] = splitTable($this->table1);
 
-    expect($result)->toBe($this->table1);
+    [$headers, $data] = SetOperation::merge([$h1, $d1]);
+
+    expect($headers)->toBe($h1);
+    expect($data)->toBe($d1);
 });
 
 test('merge handles empty tables', function (): void {
     $empty1 = [['id', 'name']];
     $empty2 = [['id', 'age']];
 
-    $result = iterator_to_array(SetOperation::merge($empty1, $empty2));
+    [$h1, $d1] = splitTable($empty1);
+    [$h2, $d2] = splitTable($empty2);
 
-    expect($result)->toHaveCount(1)
-        ->and($result[0])->toBe(['id', 'name', 'age']);
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2]);
+
+    expect($headers)->toBe(['id', 'name', 'age']);
+    expect($data)->toHaveCount(0);
 });
 
 test('merge with no tables returns empty', function (): void {
-    $result = iterator_to_array(SetOperation::merge());
+    [$headers, $data] = SetOperation::merge();
 
-    expect($result)->toBeEmpty();
+    expect($headers)->toBeEmpty();
+    expect($data)->toBeEmpty();
 });
 
 test('merge handles multiple tables with various columns', function (): void {
@@ -246,10 +305,14 @@ test('merge handles multiple tables with various columns', function (): void {
         [3],
     ];
 
-    $result = iterator_to_array(SetOperation::merge($table1, $table2, $table3));
+    [$h1, $d1] = splitTable($table1);
+    [$h2, $d2] = splitTable($table2);
+    [$h3, $d3] = splitTable($table3);
 
-    expect($result[0])->toBe(['a', 'b', 'c'])
-        ->and($result[1])->toBe([1, null, null])
-        ->and($result[2])->toBe([null, 2, null])
-        ->and($result[3])->toBe([null, null, 3]);
+    [$headers, $data] = SetOperation::merge([$h1, $d1], [$h2, $d2], [$h3, $d3]);
+
+    expect($headers)->toBe(['a', 'b', 'c'])
+        ->and($data[0])->toBe([1, null, null])
+        ->and($data[1])->toBe([null, 2, null])
+        ->and($data[2])->toBe([null, null, 3]);
 });
